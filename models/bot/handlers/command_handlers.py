@@ -36,14 +36,31 @@ def start(update, context):
             context.bot.send_message(chat_id=user['chat_id'],
                                      text=f'Привет, {user["first_name"]}!\nЧем займемся?',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+
     elif user['permissions'] == 'spectator':
-        context.bot.send_message(chat_id=user['chat_id'],
-                                 text=f'Привет, {user["first_name"]}!\nЧто хочешь узнать?',
-                                 reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
+        if _check_spectators_manager(user):
+            context.bot.send_message(chat_id=user['chat_id'],
+                                     text=f'Привет, {user["first_name"]}!\nЧто хочешь узнать?',
+                                     reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
+        else:
+            context.bot.send_message(chat_id=user['chat_id'],
+                                     text=f'Привет, {user["first_name"]}!\nПопроси менеджера добавить тебя в '
+                                          f'наблюдатели.')
+
     else:
         context.bot.send_message(chat_id=user['chat_id'],
                                  text=f'Привет, {user["first_name"]}!\nЯ тебя не знаю. Напиши @vnkl_iam. '
                                       f'Может быть, он нас познакомит.')
+
+
+def _check_spectators_manager(user):
+    try:
+        if user['manager']:
+            return True
+        else:
+            return False
+    except KeyError:
+        return False
 
 
 def set_token(update, context):
@@ -108,9 +125,16 @@ def get_campaign_statuses(update, context):
         for name, status in camp_statuses.items():
             text += f'<b>{name}</b> is {status}\n'
 
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text=text,
-                                 parse_mode=ParseMode.HTML,
-                                 reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+        user = DB.users.find_one({'user_id': update.effective_user.id})
 
+        if user['permissions'] == 'manager':
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text=text,
+                                     parse_mode=ParseMode.HTML,
+                                     reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
 
+        elif user['permissions'] == 'spectator':
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text=text,
+                                     parse_mode=ParseMode.HTML,
+                                     reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))

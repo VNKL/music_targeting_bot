@@ -218,7 +218,6 @@ def _nc_get_cover_img(update, context):
         os.getcwd()
         os.chdir('..')
         os.chdir('..')
-        os.chdir('..')
         os.makedirs('cover_images', exist_ok=True)
         photo = context.bot.get_file(update.message.photo[-1].file_id)
         path = f'cover_images\{photo.file_id}.jpg'
@@ -269,7 +268,7 @@ def _nc_get_end_decision(update, context):
                                      text=f'Кампания "{campaign_name}" создана в базе данных. '
                                           f'Теперь ты можешь запустить ее из основного меню',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
-            return 'start_campaign_choice'
+            return ConversationHandler.END
 
         elif text == 'Нет, давай начнем с начала':
             cabinets = []
@@ -292,40 +291,6 @@ def _nc_get_end_decision(update, context):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='Ты ввел что-то не то. Давай еще раз.')
             return 'get_end_decision'
-
-
-def _nc_start_campaign_choice(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to choice start campaign or not')
-
-    if _is_user_known(context, update):
-        user = DB.users.find_one({'user_id': update.effective_user.id})
-        camp_settings = campaign_settings[user['user_id']]
-        campaign_name = f'{camp_settings["artist_name"].upper()} / {camp_settings["track_name"]}'
-
-        text = update.message.text
-
-        if text == 'Нет':
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=f'Окей, теперь ты можешь запустить эту кампанию из главного меню',
-                                     reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
-            campaign_settings[user['user_id']] = {}
-            return ConversationHandler.END
-
-        elif text == 'Да':
-            process = Process(target=start_campaign_from_db, args=(update, camp_settings))
-            process.start()
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=f'Кампания "{campaign_name}" отправлена на запуск',
-                                     reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
-            campaign_settings[user['user_id']] = {}
-            return ConversationHandler.END
-
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=f'Ты сделал не то, что я просил. Давай еще раз.\n'
-                                          f'Запустить кампанию сейчас?',
-                                     reply_markup=ReplyKeyboardMarkup([['Да', 'Нет']], one_time_keyboard=True))
-            return 'start_campaign_choice'
 
 
 def _nc_preparation_summary(update):
@@ -360,8 +325,7 @@ new_campaign_handler = ConversationHandler(
         'get_music_interest': [MessageHandler(Filters.text, _nc_get_music_interest)],
         'get_cover_img': [MessageHandler(Filters.photo, _nc_get_cover_img),
                           CommandHandler('skip_cover', _nc_skip_cover_img)],
-        'get_end_decision': [MessageHandler(Filters.text, _nc_get_end_decision)],
-        'start_campaign_choice': [MessageHandler(Filters.text, _nc_start_campaign_choice)],
+        'get_end_decision': [MessageHandler(Filters.text, _nc_get_end_decision)]
     },
     fallbacks=[MessageHandler(Filters.text, _nc_failback)]
 )

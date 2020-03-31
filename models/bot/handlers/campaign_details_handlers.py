@@ -25,7 +25,7 @@ def _is_user_known(context, update):
         return True
 
 
-def _cs_select_campaign(update, context):
+def _cd_select_campaign(update, context):
     logging.info(f'user_{update.effective_user.id} trying to get select campaign')
 
     if _is_user_known(context, update):
@@ -40,7 +40,7 @@ def _cs_select_campaign(update, context):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='Выбери кампанию👇🏻',
                                      reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True))
-            return 'get_camp_stats'
+            return 'get_camp_details'
         else:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='В базе данных нет кампаний, по которым можно получить стату',
@@ -48,7 +48,7 @@ def _cs_select_campaign(update, context):
             return ConversationHandler.END
 
 
-def _cs_get_camp_stats(update, context):
+def _cs_get_camp_details(update, context):
     logging.info(f'user_{update.effective_user.id} trying to get campaign stat')
 
     if _is_user_known(context, update):
@@ -56,14 +56,14 @@ def _cs_get_camp_stats(update, context):
         campaigns = get_campaigns_from_db(update)
 
         if text in list(camp_names.keys()):
-            help_text = f'Получаю стату кампании <b>"{text}"</b>..\n\n'
+            help_text = f'Получаю детализацию кампании <b>"{text}"</b>..'
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=help_text,
                                      parse_mode=ParseMode.HTML)
 
             campaign = campaigns[camp_names[text]]
-            stat = get_campaign_average(campaign)
-            answer = _answer_for_campaign_stat(text, stat)
+            stat = get_campaign_details(campaign)
+            answer = _answer_for_campaign_details(text, stat)
 
             user = DB.users.find_one({'user_id': update.effective_user.id})
             if user['permissions'] == 'manager':
@@ -83,26 +83,30 @@ def _cs_get_camp_stats(update, context):
         else:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='Ты прислал что-то не то. Давай еще раз')
-            return 'get_camp_stats'
+            return 'get_camp_details'
 
 
-def _answer_for_campaign_stat(text, stat):
-    terms_dict = {'spent': 'Потрачено',
-                  'listens': 'Клики на плей',
-                  'saves': 'Добавления',
-                  'listen_rate': 'Конверсия в клики из охвата',
-                  'listen_cost': 'Стоимость одного клика',
-                  'save_rate': 'Конверсия в добавления из охвата',
-                  'save_cost': 'Стоимость одного добавления'}
+def _answer_for_campaign_details(text, stat):
     answer = f'<b>{text}</b>\n\n'
+    for _, v in stat.items():
+        listens = v['listens']
+        reach = v['reach']
+        spent = v['spent']
+        if listens != 0:
+            cost = round((spent / listens), 2)
+        else:
+            cost = 0
+        if reach != 0:
+            rate = round((listens / reach * 100), 2)
+        else:
+            rate = 0
 
-    for k, v in stat.items():
-        answer += f'<b>{terms_dict[k]}</b>: {v}\n'
+        answer += f'<b>{v["name"]}</b>: {listens} кликов по {cost} руб, конверсия {rate}%\n'
 
     return answer
 
 
-def _cs_failback(update, context):
+def _cd_failback(update, context):
     logging.info(f'user_{update.effective_user.id} trying to set cover image')
 
     if _is_user_known(context, update):
@@ -111,11 +115,11 @@ def _cs_failback(update, context):
 
 
 # Диалог по получению статы кампании
-campaign_stats_handler = ConversationHandler(
-    entry_points=[MessageHandler(Filters.regex('^(Получить статистику кампании)$'), _cs_select_campaign)],
+campaign_details_handler = ConversationHandler(
+    entry_points=[MessageHandler(Filters.regex('^(Получить детализацию кампании)$'), _cd_select_campaign)],
     states={
-        'get_camp_stats': [MessageHandler(Filters.text, _cs_get_camp_stats)]
+        'get_camp_details': [MessageHandler(Filters.text, _cs_get_camp_details)]
     },
-    fallbacks=[MessageHandler(Filters.text, _cs_failback)]
+    fallbacks=[MessageHandler(Filters.text, _cd_failback)]
 )
 

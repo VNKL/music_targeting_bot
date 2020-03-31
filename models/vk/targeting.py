@@ -137,6 +137,7 @@ def start_campaign_from_db(update, campaign, size=8000000, status='testing'):
         f'{artist_name.upper()} / {track_name}': {
             'campaign_id': campaign_id,
             'campaign_status': status,
+            'campaign_token': user['vk_token'],
             'cabinet_id': cabinet_id,
             'cabinet_name': cabinet_name,
             'client_id': client_id,
@@ -285,10 +286,9 @@ def fully_automate_campaign(update, campaign, target_rate=0.04, stop_rate=0.03, 
     add_campaign_details_to_db(update, camp_update)
 
 
-def get_campaign_average(update, campaign):
+def get_campaign_average(campaign):
 
-    user = DB.users.find_one({'user_id': update.effective_user.id})
-    vk = VkBackend(ads_token=user['vk_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
+    vk = VkBackend(ads_token=campaign['campaign_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
     ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
     ad_playlists = {x['ad_id']: x['playlist_url'] for _, x in campaign['ads'].items()}
     ad_names = {x['ad_id']: name for name, x in campaign['ads'].items()}
@@ -312,5 +312,22 @@ def get_campaign_average(update, campaign):
     return campaign_average
 
 
+def get_campaign_details(campaign):
 
+    vk = VkBackend(ads_token=campaign['campaign_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
+    ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
+    ad_playlists = {x['ad_id']: x['playlist_url'] for _, x in campaign['ads'].items()}
+    ad_names = {x['ad_id']: name for name, x in campaign['ads'].items()}
 
+    ads_stat = vk.get_ads_stat(cabinet_id=campaign['cabinet_id'], client_id=campaign['client_id'],
+                               campaign_id=campaign['campaign_id'], ad_ids=ad_ids, ad_names=ad_names)
+    listens = vk.get_playlist_listens(group_id=campaign['fake_group_id'], playlist_name=campaign['track_name'])
+
+    full_ads_stat = {}
+    for ad_id, ad_stat in ads_stat.items():
+        stat = ad_stat.copy()
+        playlist_url = ad_playlists[ad_id]
+        stat['listens'] = int(listens[playlist_url])
+        full_ads_stat[ad_id] = stat
+
+    return full_ads_stat

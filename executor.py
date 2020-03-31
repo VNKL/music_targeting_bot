@@ -7,6 +7,8 @@ from models.bot.handlers.create_campaign_handlers import new_campaign_handler
 from models.bot.handlers.start_campaign_handlers import start_campaign_handler
 from models.bot.handlers.automate_campaign_handlers import automate_campaign_handler
 from models.bot.handlers.campaign_stat_handlers import campaign_stats_handler
+from models.bot.handlers.add_spectator_handlers import add_spectator_handler
+from models.bot.handlers.campaign_details_handlers import campaign_details_handler
 import settings
 
 
@@ -26,6 +28,8 @@ def main():
     dp.add_handler(start_campaign_handler)
     dp.add_handler(automate_campaign_handler)
     dp.add_handler(campaign_stats_handler)
+    dp.add_handler(campaign_details_handler)
+    dp.add_handler(add_spectator_handler)
     dp.add_handler(MessageHandler(Filters.regex('^(Получить статусы кампаний)$'), get_campaign_statuses))
     dp.add_handler(MessageHandler(Filters.regex('^(Обновить кабинеты)$'), update_cabinets))
 

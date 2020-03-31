@@ -24,7 +24,7 @@ def get_or_create_user(update):
                 'user_name': update.effective_user.username,
                 'first_name': update.effective_user.first_name,
                 'last_name': update.effective_user.last_name,
-                'permissions': permissions,
+                'permissions': permission,
                 'vk_token': None}
         DB.users.insert_one(user)
 
@@ -34,7 +34,7 @@ def get_or_create_user(update):
 def add_spectator_to_user(update):
     user = DB.users.find_one({'user_id': update.effective_user.id})
     updated_user = user.copy()
-    spectator = update.message.text[1]
+    spectator = update.message.text[1:]
 
     try:
         spectators = user['spectators']
@@ -46,13 +46,11 @@ def add_spectator_to_user(update):
 
     spect_from_db = DB.users.find_one({'user_name': spectator})
     updated_spectator = spect_from_db.copy()
-    try:
-        managers = updated_spectator['managers']
-        managers.append(user['user_id'])
-    except KeyError:
-        managers = [user['user_id']]
-    updated_spectator['managers'] = managers
+    manager = user['user_name']
+    updated_spectator['manager'] = manager
     DB.users.update({'_id': spect_from_db['_id']}, {'$set': updated_spectator})
+
+    return spectator
 
 
 def add_token_to_user(update, token):
@@ -131,6 +129,7 @@ def add_campaign_setting_to_db(update, campaign_settings):
         f'{settings["artist_name"].upper()} / {settings["track_name"]}': {
             'campaign_id': None,
             'campaign_status': 'created',
+            'campaign_token': user['vk_token'],
             'cabinet_id': settings['cabinet_id'],
             'cabinet_name': settings['cabinet_name'],
             'client_id': settings['client_id'],
@@ -179,6 +178,10 @@ def add_campaign_details_to_db(update, detailed_campaign):
 
 def get_campaigns_from_db(update):
     user = DB.users.find_one({'user_id': update.effective_user.id})
+
+    if user['permissions'] == 'spectator':
+        user = DB.users.find_one({'user_name': user['manager']})
+
     campaigns = {}
 
     user_cabinets = user['user_cabinets']
@@ -197,4 +200,6 @@ def get_campaigns_from_db(update):
                 pass
 
     return campaigns
+
+
 
