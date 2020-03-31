@@ -267,10 +267,9 @@ class VkAudioBackend:
 
     def _auth_without_coockies(self):
         self.browser.get('http://www.vk.com')
-        time.sleep(1)
-        login = self.browser.find_element_by_xpath('//*[@id="index_email"]')
-        password = self.browser.find_element_by_xpath('//*[@id="index_pass"]')
-        enter = self.browser.find_element_by_xpath('//*[@id="index_login_button"]')
+        login = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_email')))
+        password = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_pass')))
+        enter = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_login_button')))
         login.send_keys(self.login)
         password.send_keys(self.password)
         enter.click()
@@ -305,12 +304,12 @@ class VkAudioBackend:
                     del cookie['expiry']
 
             self.browser.get('https://vk.com/blank.php?code=40&gid=646266266')
-            time.sleep(2)
+            time.sleep(1)
             for i in cookies_load:
                 self.browser.add_cookie(i)
 
             self.browser.get('https://vk.com/feed')
-            time.sleep(2)
+            time.sleep(1)
             if self.browser.current_url == 'https://vk.com/feed':
                 print('successfully auth on vk.com')
             else:
@@ -366,64 +365,122 @@ class VkAudioBackend:
         (обложка тянется из единственного трека в этом плейлсите)
 
         """
+        if self.browser.current_url != f'https://vk.com/audios-{group_id}':
+            self.browser.get(f'https://vk.com/audios-{group_id}')
 
-        self.browser.get(f'https://vk.com/audios-{group_id}')
-        time.sleep(1)
+        try:
+            # Click on "add playlist" button
+            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
+            add_btn.click()
 
-        # Click on "add playlist" button
-        add_btn = self.browser.find_element_by_xpath('//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')
-        add_btn.click()
-        time.sleep(1)
+            # Paste playlist_name in form
+            form = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="ape_pl_name"]')))
+            form.send_keys(playlist_name)
 
-        # Paste playlist_name in form
-        form = self.browser.find_element_by_xpath('//*[@id="ape_pl_name"]')
-        form.send_keys(playlist_name)
-        time.sleep(1)
+            # Select last group audio and create playlist
+            select_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="ape_add_audios_btn"]')))
+            select_btn.click()
+            audio_flag = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[5]/div/div[1]')))
+            audio_flag.click()
+            save_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/table/tbody/tr/td/button')))
+            save_btn.click()
 
-        # Select last group audio and create playlist
-        select_btn = self.browser.find_element_by_xpath('//*[@id="ape_add_audios_btn"]')
-        select_btn.click()
-        time.sleep(1)
-        audio_flag = self.browser.find_element_by_xpath('//*[@id="box_layer"]/div[2]/div/div[2]/div/div[5]/div/div[1]')
-        audio_flag.click()
-        time.sleep(1)
-        save_btn = self.browser.find_element_by_xpath('//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/'
-                                                      'table/tbody/tr/td/button')
-        save_btn.click()
-        time.sleep(1)
+        except selenium.common.exceptions.TimeoutException:
+            self.browser.refresh()
+            self._create_playlist_without_cover(group_id, playlist_name)
+
+        except selenium.common.exceptions.ElementClickInterceptedException:
+            self.browser.refresh()
+            self._create_playlist_without_cover(group_id, playlist_name)
 
     def _create_playlist_with_cover(self, group_id, playlist_name, cover_path):
         """" Добавление в аудиозаписи паблика плейлиста со своей обложкой """
 
+        if self.browser.current_url != f'https://vk.com/audios-{group_id}':
+            self.browser.get(f'https://vk.com/audios-{group_id}')
+
+        try:
+            # Click on "add playlist" button
+            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
+            add_btn.click()
+
+            # Upload cover from cover_path
+            cover_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[1]/div[2]/input')))
+            cover_btn.send_keys(cover_path)
+            time.sleep(2)
+
+            # Paste playlist_name in form
+            form = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="ape_pl_name"]')))
+            form.send_keys(playlist_name)
+
+            # Select last group audio and create playlist
+            select_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="ape_add_audios_btn"]')))
+            select_btn.click()
+            audio_flag = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[5]/div/div[1]')))
+            audio_flag.click()
+            save_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/table/tbody/tr/td/button')))
+            save_btn.click()
+
+        except selenium.common.exceptions.TimeoutException:
+            self.browser.refresh()
+            self._create_playlist_with_cover(group_id, playlist_name, cover_path)
+
+        except selenium.common.exceptions.ElementClickInterceptedException:
+            self.browser.refresh()
+            self._create_playlist_with_cover(group_id, playlist_name, cover_path)
+
+    def _add_audio_from_users_audio(self, group_id, track_name):
         self.browser.get(f'https://vk.com/audios-{group_id}')
         time.sleep(1)
 
-        # Click on "add playlist" button
-        add_btn = self.browser.find_element_by_xpath('//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')
-        add_btn.click()
-        time.sleep(1)
+        try:
+            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
+            add_btn.click()
 
-        # Upload cover from cover_path
-        cover_btn = self.browser.find_element_by_xpath('//*[@id="box_layer"]/div[2]/div/div[2]/div/div[1]/div[2]/input')
-        cover_btn.send_keys(cover_path)
-        time.sleep(1)
+            # Click on "choise from my audios"
+            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/div[2]/a')))
+            add_btn.click()
 
-        # Paste playlist_name in form
-        form = self.browser.find_element_by_xpath('//*[@id="ape_pl_name"]')
-        form.send_keys(playlist_name)
-        time.sleep(1)
+            # Past audio_name in search form
+            search_form = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="ape_edit_playlist_search"]')))
+            search_form.send_keys(track_name)
 
-        # Select last group audio and create playlist
-        select_btn = self.browser.find_element_by_xpath('//*[@id="ape_add_audios_btn"]')
-        select_btn.click()
-        time.sleep(1)
-        audio_flag = self.browser.find_element_by_xpath('//*[@id="box_layer"]/div[2]/div/div[2]/div/div[5]/div/div[1]')
-        audio_flag.click()
-        time.sleep(1)
-        save_btn = self.browser.find_element_by_xpath('//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/'
-                                                      'table/tbody/tr/td/button')
-        save_btn.click()
-        time.sleep(1)
+            # Click on most relevant search result
+            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[5]/div[1]/div[1]')))
+            add_btn.click()
+
+            # Check for success
+            self.browser.refresh()
+            time.sleep(1)
+            html = self.browser.page_source
+            if html.lower().find(track_name.lower()):
+                print(f'successfully added "{track_name}" in group audios')
+                return True
+            else:
+                return False
+
+        except selenium.common.exceptions.ElementClickInterceptedException:
+            print('add audio in group error')
+            return False
+
+        except selenium.common.exceptions.TimeoutException:
+            print('add audio in group error')
+            return False
 
     def _check_browser_auth(self):
         if self.is_auth is False:
@@ -472,33 +529,24 @@ class VkAudioBackend:
 
         # Click on "add audio" button
         try:
-            add_btn = self.browser.find_element_by_xpath('//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')
+            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
             add_btn.click()
-            time.sleep(1)
-        except selenium.common.exceptions.ElementClickInterceptedException:
-            self.browser.refresh()
-            time.sleep(1)
-            add_btn = self.browser.find_element_by_xpath('//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')
+
+            # Click on "choise from my audios"
+            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/div[2]/a')))
             add_btn.click()
-            time.sleep(1)
 
+            # Past audio_name in search form
+            search_form = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="ape_edit_playlist_search"]')))
+            search_form.send_keys(track_name)
 
-        # Click on "choise from my audios"
-        add_btn = self.browser.find_element_by_xpath('//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/div[2]/a')
-        add_btn.click()
-        time.sleep(1)
-
-        # Past audio_name in search form
-        search_form = self.browser.find_element_by_xpath('//*[@id="ape_edit_playlist_search"]')
-        search_form.send_keys(track_name)
-        time.sleep(1)
-
-        # Click on most relevant search result
-        try:
-            add_btn = self.browser.find_element_by_xpath(
-                '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[5]/div[2]/div[1]')
+            # Click on most relevant search result
+            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[5]/div[2]/div[1]')))
             add_btn.click()
-            time.sleep(1)
 
             # Check for success
             self.browser.refresh()
@@ -510,8 +558,11 @@ class VkAudioBackend:
             else:
                 return False
 
-        except Exception:
-            print(f'"{track_name}" was not added in group audios')
+        except selenium.common.exceptions.ElementClickInterceptedException:
+            return self._add_audio_from_users_audio(group_id, track_name)
+
+        except selenium.common.exceptions.TimeoutException:
+            return self._add_audio_from_users_audio(group_id, track_name)
 
     def create_playlists(self, group_id, playlist_name, cover_path=None, count=1):
         """ Создание плейлистов в паблике """
