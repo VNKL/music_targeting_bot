@@ -1216,9 +1216,12 @@ class Bagosi:
         try:
             # Логинимся в ВК
             self.browser.get('http://www.vk.com')
-            login = self.browser.find_element_by_xpath('//*[@id="index_email"]')
-            password = self.browser.find_element_by_xpath('//*[@id="index_pass"]')
-            enter = self.browser.find_element_by_xpath('//*[@id="index_login_button"]')
+            login = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="index_email"]')))
+            password = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="index_pass"]')))
+            enter = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located(
+                (By.XPATH, '//*[@id="index_login_button"]')))
             login.send_keys(self.login)
             password.send_keys(self.password)
             enter.click()
@@ -1234,7 +1237,7 @@ class Bagosi:
 
         # Вставляем ссылку
         linkform = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id')))
-        button = self.browser.find_element_by_xpath('//*[@id="submit"]')
+        button = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="submit"]')))
         linkform.send_keys(url)
         button.click()
         time.sleep(3)
@@ -1252,8 +1255,4 @@ class Bagosi:
 
     def __del__(self):
         self.browser.close()
-
-
-# TODO  Добавить ожидание появления кликабельных элемнтов в VkGroupAudio
-
 
