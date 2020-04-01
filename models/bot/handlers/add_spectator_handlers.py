@@ -1,13 +1,13 @@
 """ Use python 3.7 """
 
 import logging
-from multiprocessing import Process
 
-from telegram.ext import ConversationHandler, MessageHandler, Filters
+from telegram.ext import ConversationHandler, MessageHandler, CommandHandler, Filters
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ParseMode
 
 from settings import MAIN_MANAGER_KEYBOARD, MAIN_SPECTATOR_KEYBOARD
 from models.vk.targeting import *
+from models.bot.handlers.command_handlers import reload
 
 
 def _is_user_known(context, update):
@@ -71,7 +71,9 @@ def _sp_failback(update, context):
 add_spectator_handler = ConversationHandler(
     entry_points=[MessageHandler(Filters.regex('^(Добавить наблюдателя)$'), _sp_get_name)],
     states={
-        'add_spectator': [MessageHandler(Filters.text, _sp_add_spectator)],
+        'add_spectator': [CommandHandler('reload', reload),
+                          MessageHandler(Filters.text, _sp_add_spectator)],
     },
-    fallbacks=[MessageHandler(Filters.text, _sp_failback)]
+    fallbacks=[CommandHandler('reload', reload),
+               MessageHandler(Filters.text, _sp_failback)]
 )

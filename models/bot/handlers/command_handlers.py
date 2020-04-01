@@ -3,6 +3,7 @@
 import logging
 
 from telegram import ReplyKeyboardMarkup, ParseMode
+from telegram.ext import ConversationHandler
 
 from models.database import *
 from settings import MAIN_MANAGER_KEYBOARD, MAIN_SPECTATOR_KEYBOARD
@@ -29,27 +30,27 @@ def start(update, context):
     if user['permissions'] == 'manager':
         if user['vk_token'] is None:
             context.bot.send_message(chat_id=user['chat_id'],
-                                     text=f'Привет, {user["first_name"]}!\n'
+                                     text=f'Привет, @{user["user_name"]}!\n'
                                           f'У меня нет твоего токена от ВК((\n'
                                           f'Пришли мне токен через пробел после команды /set_token')
         else:
             context.bot.send_message(chat_id=user['chat_id'],
-                                     text=f'Привет, {user["first_name"]}!\nЧем займемся?',
+                                     text=f'Привет, @{user["user_name"]}!\nЧем займемся?',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
 
     elif user['permissions'] == 'spectator':
         if _check_spectators_manager(user):
             context.bot.send_message(chat_id=user['chat_id'],
-                                     text=f'Привет, {user["first_name"]}!\nЧто хочешь узнать?',
+                                     text=f'Привет, @{user["user_name"]}!\nЧто хочешь узнать?',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
         else:
             context.bot.send_message(chat_id=user['chat_id'],
-                                     text=f'Привет, {user["first_name"]}!\nПопроси менеджера добавить тебя в '
+                                     text=f'Привет, @{user["user_name"]}!\nПопроси менеджера добавить тебя в '
                                           f'наблюдатели.')
 
     else:
         context.bot.send_message(chat_id=user['chat_id'],
-                                 text=f'Привет, {user["first_name"]}!\nЯ тебя не знаю. Напиши @vnkl_iam. '
+                                 text=f'Привет, @{user["user_name"]}!\nЯ тебя не знаю. Напиши @vnkl_iam. '
                                       f'Может быть, он нас познакомит.')
 
 
@@ -138,3 +139,49 @@ def get_campaign_statuses(update, context):
                                      text=text,
                                      parse_mode=ParseMode.HTML,
                                      reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
+
+
+def reload(update, context):
+    logging.info(f'user_{update.effective_user.id} trying to set cover image')
+
+    if _is_user_known(context, update):
+        user = DB.users.find_one({'user_id': update.effective_user.id})
+        if user['permissions'] == 'manager':
+            context.bot.send_message(chat_id=user['chat_id'],
+                                     text='Бот перезагружен',
+                                     reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+            return ConversationHandler.END
+        elif user['permissions'] == 'spectator':
+            if _check_spectators_manager(user):
+                context.bot.send_message(chat_id=user['chat_id'],
+                                         text='Бот перезагружен',
+                                         reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
+            return ConversationHandler.END
+
+
+def help_message(update, context):
+    logging.info(f'user_{update.effective_user.id} sent "/help"')
+
+    # Тянет пользователя из БД или создает в ней нового пользователя или шлет нахуй
+    user = get_or_create_user(update)
+    if user['permissions'] == 'manager':
+        context.bot.send_message(chat_id=user['chat_id'],
+                                 text='Обратись за помощью к @vnkl_iam',
+                                 reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+
+    elif user['permissions'] == 'spectator':
+        if _check_spectators_manager(user):
+            context.bot.send_message(chat_id=user['chat_id'],
+                                     text='Оьратись за помощью к @vnkl_iam',
+                                     reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
+        else:
+            context.bot.send_message(chat_id=user['chat_id'],
+                                     text=f'Попроси менеджера добавить тебя в наблюдатели. '
+                                          f'После этого все должно стать понятно')
+
+    else:
+        context.bot.send_message(chat_id=user['chat_id'],
+                                 text=f'Привет, @{user["user_name"]}!\nЯ тебя не знаю. Напиши @vnkl_iam. '
+                                      f'Может быть, он нас познакомит.')
+
+

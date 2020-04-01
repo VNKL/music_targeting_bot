@@ -28,7 +28,7 @@ class VkBackend:
         """
         self.AdsBackend = VkAdsBackend(ads_token)
         self.AudioBackend = VkAudioBackend(support_account, headless)
-        self.Bagosi = Bagosi(support_account['login'], support_account['password'])
+        self.Bagosi = Bagosi(support_account['login'], support_account['password'], headless=headless)
 
     def create_group(self, group_name):
         """

@@ -3,11 +3,12 @@
 import logging
 from multiprocessing import Process
 
-from telegram.ext import ConversationHandler, MessageHandler, Filters
+from telegram.ext import ConversationHandler, MessageHandler, CommandHandler, Filters
 from telegram import ReplyKeyboardMarkup, ParseMode
 
 from settings import MAIN_MANAGER_KEYBOARD
 from models.vk.targeting import *
+from models.bot.handlers.command_handlers import reload
 
 
 start_campaign_settings = {}
@@ -244,13 +245,20 @@ def _ac_failback(update, context):
 automate_campaign_handler = ConversationHandler(
     entry_points=[MessageHandler(Filters.regex('^(Автоматизировать кампанию)$'), _ac_select_campaign)],
     states={
-        'select_campaign_to_start': [MessageHandler(Filters.text, _ac_select_campaign_to_start)],
-        'get_rates': [MessageHandler(Filters.text, _ac_get_rates)],
-        'get_costs': [MessageHandler(Filters.text, _ac_get_costs)],
-        'get_cpm_step_and_limit': [MessageHandler(Filters.text, _ac_get_cpm_step_and_limit)],
-        'get_cpm_update_interval': [MessageHandler(Filters.text, _ac_get_cpm_update_interval)],
-        'confirm_automate': [MessageHandler(Filters.text, _ac_confirm_automate)]
+        'select_campaign_to_start': [CommandHandler('reload', reload),
+                                     MessageHandler(Filters.text, _ac_select_campaign_to_start)],
+        'get_rates': [CommandHandler('reload', reload),
+                      MessageHandler(Filters.text, _ac_get_rates)],
+        'get_costs': [CommandHandler('reload', reload),
+                      MessageHandler(Filters.text, _ac_get_costs)],
+        'get_cpm_step_and_limit': [CommandHandler('reload', reload),
+                                   MessageHandler(Filters.text, _ac_get_cpm_step_and_limit)],
+        'get_cpm_update_interval': [CommandHandler('reload', reload),
+                                    MessageHandler(Filters.text, _ac_get_cpm_update_interval)],
+        'confirm_automate': [CommandHandler('reload', reload),
+                             MessageHandler(Filters.text, _ac_confirm_automate)]
     },
-    fallbacks=[MessageHandler(Filters.text, _ac_failback)]
+    fallbacks=[CommandHandler('reload', reload),
+               MessageHandler(Filters.text, _ac_failback)]
 )
 

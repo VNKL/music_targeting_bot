@@ -24,6 +24,7 @@ def main():
 
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(CommandHandler('set_token', set_token))
+    dp.add_handler(CommandHandler('help', help_message))
     dp.add_handler(new_campaign_handler)
     dp.add_handler(start_campaign_handler)
     dp.add_handler(automate_campaign_handler)

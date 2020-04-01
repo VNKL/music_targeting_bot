@@ -9,6 +9,7 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ParseMode
 
 from settings import MAIN_MANAGER_KEYBOARD
 from models.vk.targeting import *
+from models.bot.handlers.command_handlers import reload
 
 
 campaign_settings = {}
@@ -315,17 +316,28 @@ def _nc_failback(update, context):
 new_campaign_handler = ConversationHandler(
     entry_points=[MessageHandler(Filters.regex('^(Создать новую кампанию)$'), _nc_start)],
     states={
-        'select_cabinet': [MessageHandler(Filters.text, _nc_select_cabinet)],
-        'select_client': [MessageHandler(Filters.text, _nc_select_client)],
-        'get_release_name': [MessageHandler(Filters.regex('.+[/].+'), _nc_get_release_name)],
-        'get_citation': [MessageHandler(Filters.text, _nc_get_citation)],
-        'get_campaign_budget': [MessageHandler(Filters.regex('\d+'), _nc_get_campaign_budget)],
-        'get_artist_group': [MessageHandler(Filters.regex('\d+'), _nc_get_artist_group)],
-        'get_fake_group': [MessageHandler(Filters.regex('\d+'), _nc_get_fake_group)],
-        'get_music_interest': [MessageHandler(Filters.text, _nc_get_music_interest)],
-        'get_cover_img': [MessageHandler(Filters.photo, _nc_get_cover_img),
+        'select_cabinet': [CommandHandler('reload', reload),
+                           MessageHandler(Filters.text, _nc_select_cabinet)],
+        'select_client': [CommandHandler('reload', reload),
+                          MessageHandler(Filters.text, _nc_select_client)],
+        'get_release_name': [CommandHandler('reload', reload),
+                             MessageHandler(Filters.regex('.+[/].+'), _nc_get_release_name)],
+        'get_citation': [CommandHandler('reload', reload),
+                         MessageHandler(Filters.text, _nc_get_citation)],
+        'get_campaign_budget': [CommandHandler('reload', reload),
+                                MessageHandler(Filters.regex('\d+'), _nc_get_campaign_budget)],
+        'get_artist_group': [CommandHandler('reload', reload),
+                             MessageHandler(Filters.regex('\d+'), _nc_get_artist_group)],
+        'get_fake_group': [CommandHandler('reload', reload),
+                           MessageHandler(Filters.regex('\d+'), _nc_get_fake_group)],
+        'get_music_interest': [CommandHandler('reload', reload),
+                               MessageHandler(Filters.text, _nc_get_music_interest)],
+        'get_cover_img': [CommandHandler('reload', reload),
+                          MessageHandler(Filters.photo, _nc_get_cover_img),
                           CommandHandler('skip_cover', _nc_skip_cover_img)],
-        'get_end_decision': [MessageHandler(Filters.text, _nc_get_end_decision)]
+        'get_end_decision': [CommandHandler('reload', reload),
+                             MessageHandler(Filters.text, _nc_get_end_decision)]
     },
-    fallbacks=[MessageHandler(Filters.text, _nc_failback)]
+    fallbacks=[CommandHandler('reload', reload),
+               MessageHandler(Filters.text, _nc_failback)]
 )

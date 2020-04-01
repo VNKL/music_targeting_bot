@@ -2,11 +2,12 @@
 
 import logging
 
-from telegram.ext import ConversationHandler, MessageHandler, Filters
+from telegram.ext import ConversationHandler, MessageHandler, CommandHandler, Filters
 from telegram import ReplyKeyboardMarkup, ParseMode
 
 from settings import MAIN_MANAGER_KEYBOARD, MAIN_SPECTATOR_KEYBOARD
 from models.vk.targeting import *
+from models.bot.handlers.command_handlers import reload
 
 
 camp_names = {}
@@ -114,8 +115,10 @@ def _cs_failback(update, context):
 campaign_stats_handler = ConversationHandler(
     entry_points=[MessageHandler(Filters.regex('^(Получить статистику кампании)$'), _cs_select_campaign)],
     states={
-        'get_camp_stats': [MessageHandler(Filters.text, _cs_get_camp_stats)]
+        'get_camp_stats': [CommandHandler('reload', reload),
+                           MessageHandler(Filters.text, _cs_get_camp_stats)]
     },
-    fallbacks=[MessageHandler(Filters.text, _cs_failback)]
+    fallbacks=[CommandHandler('reload', reload),
+               MessageHandler(Filters.text, _cs_failback)]
 )
 
