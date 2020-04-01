@@ -27,7 +27,7 @@ def _is_user_known(context, update):
 
 
 def _cd_select_campaign(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to get select campaign')
+    logging.info(f'CD - {update.effective_user.username} trying to select campaign to get details')
 
     if _is_user_known(context, update):
         campaigns = get_campaigns_from_db(update)
@@ -50,13 +50,14 @@ def _cd_select_campaign(update, context):
 
 
 def _cs_get_camp_details(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to get campaign stat')
 
     if _is_user_known(context, update):
         text = update.message.text
         campaigns = get_campaigns_from_db(update)
 
         if text in list(camp_names.keys()):
+            logging.info(f'CD - {update.effective_user.username} selected campaign')
+
             help_text = f'Получаю детализацию кампании <b>"{text}"</b>..'
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=help_text,
@@ -81,6 +82,8 @@ def _cs_get_camp_details(update, context):
                                              text=batch,
                                              parse_mode=ParseMode.HTML,
                                              reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
+
+            logging.info(f'CD - {update.effective_user.username} get campaign details')
 
             return ConversationHandler.END
 
@@ -127,7 +130,7 @@ def _answer_for_campaign_details(text, stat):
 
 
 def _cd_failback(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set cover image')
+    logging.info(f'CD - {update.effective_user.username} get failback')
 
     if _is_user_known(context, update):
         context.bot.send_message(chat_id=update.effective_chat.id,

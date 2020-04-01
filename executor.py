@@ -18,6 +18,7 @@ logging.basicConfig(format=f'%(asctime)s - %(levelname)s - %(message)s',
 
 
 def main():
+    logging.info('BOT STARTED')
 
     bot = Updater(token=settings.TELEGRAM_TOKEN, request_kwargs=settings.PROXY, use_context=True)
     dp = bot.dispatcher

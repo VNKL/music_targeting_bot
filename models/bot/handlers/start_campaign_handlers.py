@@ -28,7 +28,7 @@ def _is_user_known(context, update):
 
 
 def _sc_select_campaign(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to choice start campaign or not')
+    logging.info(f'SC - {update.effective_user.username} trying to select campaign to start')
 
     if _is_user_known(context, update):
         campaigns = get_campaigns_from_db(update)
@@ -40,7 +40,7 @@ def _sc_select_campaign(update, context):
 
 
 def _sc_select_campaign_to_start(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to choice start campaign or not')
+    logging.info(f'SC - {update.effective_user.username} trying to choose automate campaign or only start')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -60,7 +60,7 @@ def _sc_select_campaign_to_start(update, context):
 
 
 def _sc_automate_decision(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to automate campaign or not')
+    logging.info(f'SC - {update.effective_user.username} trying to set automate decision')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -73,6 +73,7 @@ def _sc_automate_decision(update, context):
                                           f'Минимальная - ниже которой сегменты не пройдут тест. '
                                           f'Конверсии присылай в долях от единицы, то есть 4% = 0.04.\n'
                                           f'Например: 0.04 0.03')
+            logging.info(f'SC - {update.effective_user.username} chose to automate campaign')
             return 'get_rates'
 
         elif text == 'Просто запустить':
@@ -84,6 +85,7 @@ def _sc_automate_decision(update, context):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Кампания "{campaign_name}" запускается..',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+            logging.info(f'SC - {update.effective_user.username} chose to only start campaign')
             return ConversationHandler.END
 
         else:
@@ -93,7 +95,7 @@ def _sc_automate_decision(update, context):
 
 
 def _sc_get_rates(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set rates')
+    logging.info(f'SC - {update.effective_user.username} trying to set rates')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -115,6 +117,7 @@ def _sc_get_rates(update, context):
                                               f'стоимость клика, и буду останавливать сегменты, по которым не '
                                               f'получается сделать стоиомость ниже максимальной.\n'
                                               f'Например: 0.9 1.3')
+                logging.info(f'SC - {update.effective_user.username} set rates')
                 return 'get_costs'
 
             except ValueError:
@@ -124,7 +127,7 @@ def _sc_get_rates(update, context):
 
 
 def _sc_get_costs(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set rates')
+    logging.info(f'SC - {update.effective_user.username} trying to set costs')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -145,6 +148,7 @@ def _sc_get_costs(update, context):
                                               f'в рублях. С заданным шагом я буду обновлять СРМ, но никогда не сделаю '
                                               f'его выше максимального.\n'
                                               f'Например: 5.4 118.3')
+                logging.info(f'SC - {update.effective_user.username} set costs')
                 return 'get_cpm_step_and_limit'
 
             except ValueError:
@@ -154,7 +158,7 @@ def _sc_get_costs(update, context):
 
 
 def _sc_get_cpm_step_and_limit(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set rates')
+    logging.info(f'SC - {update.effective_user.username} trying to set cpm step and cpm limit')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -172,6 +176,7 @@ def _sc_get_cpm_step_and_limit(update, context):
                 start_campaign_settings[user['user_id']].update({'cpm_step': cpm_step, 'cpm_limit': cpm_limit})
                 context.bot.send_message(chat_id=update.effective_chat.id,
                                          text=f'Пришли интервал, с которым мне обновлять ставки, в минутах.')
+                logging.info(f'SC - {update.effective_user.username} set cpm step and cpm limit')
                 return 'get_cpm_update_interval'
 
             except ValueError:
@@ -181,7 +186,7 @@ def _sc_get_cpm_step_and_limit(update, context):
 
 
 def _sc_get_cpm_update_interval(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set rates')
+    logging.info(f'AC - {update.effective_user.username} trying to set cpm update interval')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -196,6 +201,7 @@ def _sc_get_cpm_update_interval(update, context):
                                      reply_markup=ReplyKeyboardMarkup([['Да, запускай автоматизацию'],
                                                                        ['Нет, давай заново']],
                                                                       one_time_keyboard=True))
+            logging.info(f'AC - {update.effective_user.username} set cpm step and cpm limit')
             return 'confirm_automate'
 
         except ValueError:
@@ -205,7 +211,7 @@ def _sc_get_cpm_update_interval(update, context):
 
 
 def _sc_confirm_automate(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set rates')
+    logging.info(f'SC - {update.effective_user.username} trying to end dialog')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -217,6 +223,7 @@ def _sc_confirm_automate(update, context):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Какую кампанию запускаем?',
                                      reply_markup=ReplyKeyboardMarkup(camp_names, one_time_keyboard=True))
+            logging.info(f'AC - {update.effective_user.username} choose to start dialog again')
             return 'select_campaign_to_start'
 
         elif text == 'Да, запускай автоматизацию':
@@ -239,6 +246,9 @@ def _sc_confirm_automate(update, context):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Автоматизация запускается..',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+
+            logging.info(f'AC - {update.effective_user.username} started campaign automate')
+
             return ConversationHandler.END
 
         else:
@@ -258,7 +268,7 @@ def _sc_preparation_summary(update):
 
 
 def _sc_failback(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set cover image')
+    logging.info(f'SC - {update.effective_user.username} get failback')
 
     if _is_user_known(context, update):
         context.bot.send_message(chat_id=update.effective_chat.id,

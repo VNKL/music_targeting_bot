@@ -24,7 +24,7 @@ def _is_user_known(context, update):
 
 
 def _sp_get_name(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to add spectator')
+    logging.info(f'SP - {update.effective_user.username} trying to add spectator')
 
     if _is_user_known(context, update):
         context.bot.send_message(chat_id=update.effective_chat.id,
@@ -34,7 +34,7 @@ def _sp_get_name(update, context):
 
 
 def _sp_add_spectator(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to add spectator')
+    logging.info(f'SP - {update.effective_user.username} trying to send spectator username')
 
     if _is_user_known(context, update):
         text = update.message.text
@@ -46,6 +46,7 @@ def _sp_add_spectator(update, context):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Наблюдатель добавлен',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+            logging.info(f'SP - {update.effective_user.username} added the spectator')
 
             context.bot.send_message(chat_id=spec_user['chat_id'],
                                      text=f'@{user_name} добавил тебя в наблюдатели',
@@ -60,7 +61,7 @@ def _sp_add_spectator(update, context):
 
 
 def _sp_failback(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to add spectator')
+    logging.info(f'SP - {update.effective_user.username} get failback')
 
     if _is_user_known(context, update):
         context.bot.send_message(chat_id=update.effective_chat.id,

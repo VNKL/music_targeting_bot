@@ -27,7 +27,7 @@ def _is_user_known(context, update):
 
 
 def _cs_select_campaign(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to get select campaign')
+    logging.info(f'CS - {update.effective_user.username} trying to select campaign to get average stat')
 
     if _is_user_known(context, update):
         campaigns = get_campaigns_from_db(update)
@@ -50,13 +50,13 @@ def _cs_select_campaign(update, context):
 
 
 def _cs_get_camp_stats(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to get campaign stat')
 
     if _is_user_known(context, update):
         text = update.message.text
         campaigns = get_campaigns_from_db(update)
 
         if text in list(camp_names.keys()):
+            logging.info(f'CS - {update.effective_user.username} selected campaign to get stats')
             help_text = f'Получаю стату кампании <b>"{text}"</b>..\n\n'
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=help_text,
@@ -78,6 +78,8 @@ def _cs_get_camp_stats(update, context):
                                          text=answer,
                                          parse_mode=ParseMode.HTML,
                                          reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
+
+            logging.info(f'CS - {update.effective_user.username} get campaign average stat')
 
             return ConversationHandler.END
 
@@ -104,7 +106,7 @@ def _answer_for_campaign_stat(text, stat):
 
 
 def _cs_failback(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set cover image')
+    logging.info(f'CS - {update.effective_user.username} get failback')
 
     if _is_user_known(context, update):
         context.bot.send_message(chat_id=update.effective_chat.id,

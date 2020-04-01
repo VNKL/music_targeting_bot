@@ -29,7 +29,7 @@ def _is_user_known(context, update):
 
 
 def _nc_start(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to start new campaign')
+    logging.info(f'CC - {update.effective_user.username} trying to start new campaign')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -45,7 +45,7 @@ def _nc_start(update, context):
 
 
 def _nc_select_cabinet(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to select cabinet')
+    logging.info(f'CC - {update.effective_user.username} trying to select cabinet')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -85,7 +85,7 @@ def _nc_select_cabinet(update, context):
 
 
 def _nc_select_client(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to select client')
+    logging.info(f'CC - {update.effective_user.username} trying to select client')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -105,7 +105,7 @@ def _nc_select_client(update, context):
 
 
 def _nc_get_release_name(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set artist and track name')
+    logging.info(f'CC - {update.effective_user.username} trying to set artist name and track name')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -128,7 +128,7 @@ def _nc_get_release_name(update, context):
 
 
 def _nc_get_citation(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set citation')
+    logging.info(f'CC - {update.effective_user.username} trying to set citation')
 
     if _is_user_known(context, update):
         # Обновляет переменную
@@ -146,7 +146,7 @@ def _nc_get_citation(update, context):
 
 
 def _nc_get_campaign_budget(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set campaign budget')
+    logging.info(f'CC - {update.effective_user.username} trying to set campaign budget')
 
     if _is_user_known(context, update):
         # Делает бюджет интом, обновляет переменную и просит прислать цитату
@@ -159,7 +159,7 @@ def _nc_get_campaign_budget(update, context):
 
 
 def _nc_get_artist_group(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set artist group id')
+    logging.info(f'CC - {update.effective_user.username} trying to set artist group id')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -173,7 +173,7 @@ def _nc_get_artist_group(update, context):
 
 
 def _nc_get_fake_group(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set fake group id')
+    logging.info(f'CC - {update.effective_user.username} trying to set fake group id')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -189,7 +189,7 @@ def _nc_get_fake_group(update, context):
 
 
 def _nc_get_music_interest(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set music interest filter')
+    logging.info(f'CC - {update.effective_user.username} trying to set music interest filter')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -211,7 +211,7 @@ def _nc_get_music_interest(update, context):
 
 
 def _nc_get_cover_img(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set cover image')
+    logging.info(f'CC - {update.effective_user.username} trying to set cover image')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -238,7 +238,7 @@ def _nc_get_cover_img(update, context):
 
 
 def _nc_skip_cover_img(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to skip cover image')
+    logging.info(f'CC - {update.effective_user.username} trying to skip cover image')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -256,7 +256,7 @@ def _nc_skip_cover_img(update, context):
 
 
 def _nc_get_end_decision(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set end decision')
+    logging.info(f'CC - {update.effective_user.username} trying to set end decision')
 
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
@@ -269,6 +269,7 @@ def _nc_get_end_decision(update, context):
                                      text=f'Кампания "{campaign_name}" создана в базе данных. '
                                           f'Теперь ты можешь запустить ее из основного меню',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+            logging.info(f'CC - {update.effective_user.username} chose to create campaign in DB')
             return ConversationHandler.END
 
         elif text == 'Нет, давай начнем с начала':
@@ -280,12 +281,14 @@ def _nc_get_end_decision(update, context):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='Выбери рекламный кабинет👇🏻',
                                      reply_markup=ReplyKeyboardMarkup(cabinets))
+            logging.info(f'CC - {update.effective_user.username} chose to start again')
             return 'select_cabinet'
 
         elif text == 'Нет, выведи основное меню':
             context.bot.send_message(chat_id=user['chat_id'],
                                      text='Окей, чем займемся?',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+            logging.info(f'CC - {update.effective_user.username} chose to get main manager menu')
             return ConversationHandler.END
 
         else:
@@ -305,7 +308,7 @@ def _nc_preparation_summary(update):
 
 
 def _nc_failback(update, context):
-    logging.info(f'user_{update.effective_user.id} trying to set cover image')
+    logging.info(f'CC - {update.effective_user.username} get failback')
 
     if _is_user_known(context, update):
         context.bot.send_message(chat_id=update.effective_chat.id,
