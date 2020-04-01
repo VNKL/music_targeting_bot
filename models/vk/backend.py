@@ -121,7 +121,7 @@ class VkBackend:
         """
         return self.AdsBackend.get_clients(cabinet_id)
 
-    def get_ads_stat(self, cabinet_id, campaign_id, ad_ids, ad_names, client_id=None):
+    def get_ads_stat(self, cabinet_id, campaign_id, ad_ids, ad_names, client_id=None, include_deleted=False):
         """
         Возвращает стату с рекламных объявлений
 
@@ -258,11 +258,12 @@ class VkAudioBackend:
         chrome_options = webdriver.ChromeOptions()
         prefs = {"profile.managed_default_content_settings.images": 2}
         chrome_options.add_experimental_option("prefs", prefs)
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
         if headless is True:
             chrome_options.add_argument('headless')
         chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/'
                                     '537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36 Edge/18.17763')
-        browser = webdriver.Chrome('chromedriver\chromedriver.exe', options=chrome_options)
+        browser = webdriver.Chrome('C:\chromedriver\chromedriver.exe', options=chrome_options)
         return browser
 
     def _auth_without_coockies(self):
@@ -277,7 +278,7 @@ class VkAudioBackend:
         if self.browser.current_url == 'https://vk.com/feed':
             print('successfully auth on vk.com')
             cookies = self.browser.get_cookies()
-            with open(f'chromedriver/coockies_{self.login}.pkl', 'wb') as file:
+            with open(f'C:\chromedriver\coockies_{self.login}.pkl', 'wb') as file:
                 pickle.dump(cookies, file)
         elif self.browser.current_url == 'https://vk.com/login?act=authcheck':
             two_fact_form = self.browser.find_element_by_xpath('//*[@id="authcheck_code"]')
@@ -289,7 +290,7 @@ class VkAudioBackend:
             if self.browser.current_url == 'https://vk.com/feed':
                 print('successfully auth on vk.com')
                 cookies = self.browser.get_cookies()
-                with open(f'chromedriver/coockies_{self.login}.pkl', 'wb') as file:
+                with open(f'C:\chromedriver\chromedriver.exe\coockies_{self.login}.pkl', 'wb') as file:
                     pickle.dump(cookies, file)
             else:
                 raise RuntimeError('something wrong with login on vk.com, run with headless=False to see it')
@@ -297,7 +298,7 @@ class VkAudioBackend:
             raise RuntimeError('something wrong with login on vk.com, run with headless=False to see it')
 
     def _auth_with_coockies(self):
-        with open(f'chromedriver/coockies_{self.login}.pkl', 'rb') as file:
+        with open(f'C:\chromedriver\coockies_{self.login}.pkl', 'rb') as file:
             cookies_load = pickle.load(file)
             for cookie in cookies_load:
                 if 'expiry' in cookie:
@@ -370,25 +371,30 @@ class VkAudioBackend:
 
         try:
             # Click on "add playlist" button
-            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
             add_btn.click()
+            time.sleep(1)
 
             # Paste playlist_name in form
-            form = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            form = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="ape_pl_name"]')))
             form.send_keys(playlist_name)
+            time.sleep(1)
 
             # Select last group audio and create playlist
-            select_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            select_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="ape_add_audios_btn"]')))
             select_btn.click()
-            audio_flag = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            time.sleep(1)
+            audio_flag = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[5]/div/div[1]')))
             audio_flag.click()
-            save_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            time.sleep(1)
+            save_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/table/tbody/tr/td/button')))
             save_btn.click()
+            time.sleep(1)
 
         except selenium.common.exceptions.TimeoutException:
             self.browser.refresh()
@@ -475,12 +481,10 @@ class VkAudioBackend:
                 return False
 
         except selenium.common.exceptions.ElementClickInterceptedException:
-            print('add audio in group error')
-            return False
+            return self.add_audio_in_group(group_id, track_name)
 
         except selenium.common.exceptions.TimeoutException:
-            print('add audio in group error')
-            return False
+            return self.add_audio_in_group(group_id, track_name)
 
     def _check_browser_auth(self):
         if self.is_auth is False:
@@ -529,22 +533,25 @@ class VkAudioBackend:
 
         # Click on "add audio" button
         try:
-            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
             add_btn.click()
+            time.sleep(1)
 
             # Click on "choise from my audios"
-            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/div[2]/a')))
             add_btn.click()
+            time.sleep(1)
 
             # Past audio_name in search form
-            search_form = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            search_form = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="ape_edit_playlist_search"]')))
             search_form.send_keys(track_name)
+            time.sleep(1)
 
             # Click on most relevant search result
-            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[5]/div[2]/div[1]')))
             add_btn.click()
 
@@ -563,6 +570,11 @@ class VkAudioBackend:
 
         except selenium.common.exceptions.TimeoutException:
             return self._add_audio_from_users_audio(group_id, track_name)
+
+        except selenium.common.exceptions.ElementNotInteractableException:
+            self.browser.refresh()
+            time.sleep(1)
+            return self.add_audio_in_group(group_id, track_name)
 
     def create_playlists(self, group_id, playlist_name, cover_path=None, count=1):
         """ Создание плейлистов в паблике """
@@ -1204,6 +1216,7 @@ class Bagosi:
         chromeOptions = webdriver.ChromeOptions()
         prefs = {"profile.managed_default_content_settings.images": 2}
         chromeOptions.add_experimental_option("prefs", prefs)
+        chromeOptions.add_experimental_option("excludeSwitches", ["enable-logging"])
         if headless is True:
             chromeOptions.add_argument('headless')
         chromeOptions.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/'

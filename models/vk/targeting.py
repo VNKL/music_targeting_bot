@@ -288,7 +288,7 @@ def fully_automate_campaign(update, campaign, target_rate=0.04, stop_rate=0.03, 
 
 def get_campaign_average(campaign):
 
-    vk = VkBackend(ads_token=campaign['campaign_token'], support_account=VK_SUPPORT_ACCOUNT, headless=False)
+    vk = VkBackend(ads_token=campaign['campaign_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
     ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
     ad_playlists = {x['ad_id']: x['playlist_url'] for _, x in campaign['ads'].items()}
     ad_names = {x['ad_id']: name for name, x in campaign['ads'].items()}

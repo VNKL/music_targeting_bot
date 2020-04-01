@@ -67,17 +67,20 @@ def _cs_get_camp_details(update, context):
             answer = _answer_for_campaign_details(text, stat)
 
             user = DB.users.find_one({'user_id': update.effective_user.id})
-            if user['permissions'] == 'manager':
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text=answer,
-                                         parse_mode=ParseMode.HTML,
-                                         reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
 
-            elif user['permissions'] == 'spectator':
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text=answer,
-                                         parse_mode=ParseMode.HTML,
-                                         reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
+            for batch in answer:
+
+                if user['permissions'] == 'manager':
+                    context.bot.send_message(chat_id=update.effective_chat.id,
+                                             text=batch,
+                                             parse_mode=ParseMode.HTML,
+                                             reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+
+                elif user['permissions'] == 'spectator':
+                    context.bot.send_message(chat_id=update.effective_chat.id,
+                                             text=batch,
+                                             parse_mode=ParseMode.HTML,
+                                             reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
 
             return ConversationHandler.END
 
@@ -88,7 +91,8 @@ def _cs_get_camp_details(update, context):
 
 
 def _answer_for_campaign_details(text, stat):
-    answer = f'<b>{text}</b>\n\n'
+
+    text = ''
     for _, v in stat.items():
         listens = v['listens']
         reach = v['reach']
@@ -102,7 +106,22 @@ def _answer_for_campaign_details(text, stat):
         else:
             rate = 0
 
-        answer += f'<b>{v["name"]}</b>: {listens} кликов по {cost} руб, конверсия {rate}%\n'
+        text += f'<b>{v["name"]}</b>: {listens} кликов по {cost} руб, конверсия {rate}%\n'
+
+    answer = []
+    if len(text) > 4096:
+        lines = text.split('\n')
+        temp_text = ''
+        for line in lines:
+            if len(temp_text) + len(line) < 4096:
+                temp_text += line + '\n'
+            else:
+                answer.append(temp_text)
+                temp_text = line + '\n'
+        answer.append(temp_text)
+
+    else:
+        answer.append(text)
 
     return answer
 
