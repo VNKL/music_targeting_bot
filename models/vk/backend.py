@@ -965,7 +965,7 @@ class VkAdsBackend:
         campaign_stat = {}
         try:
             stat = resp['response'][0]['stats'][0]
-            temp = {'spent': stat['spent'], 'reach': stat['impressions']}
+            temp = {'spent': float(stat['spent']), 'reach': float(stat['impressions'])}
             campaign_stat[campaign_id] = temp
             return campaign_stat
         except IndexError:
