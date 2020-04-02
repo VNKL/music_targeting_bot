@@ -32,8 +32,7 @@ def _ac_select_campaign(update, context):
 
     if _is_user_known(context, update):
         campaigns = get_campaigns_from_db(update)
-        camp_names = [[x] for x in list(campaigns.keys()) if campaigns[x]['campaign_status'] != 'automate' and
-                                                             campaigns[x]['campaign_status'] != 'created']
+        camp_names = [[x] for x in list(campaigns.keys()) if campaigns[x]['campaign_status'] == 'started']
         if len(camp_names) != 0:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Какую кампанию автоматизируем?',
@@ -42,7 +41,7 @@ def _ac_select_campaign(update, context):
         else:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'В базе данных нет кампаний, которые можно автоматизировать. '
-                                          f'Они либо уже автоматизированы, либо еще не запущены в рекламном кабинете. ',
+                                          f'Они либо уже автоматизированы, либо еще не запущены в рекламном кабинете.',
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
             return ConversationHandler.END
 
@@ -58,49 +57,17 @@ def _ac_select_campaign_to_start(update, context):
 
             start_campaign_settings[user['user_id']] = {'campaign_name': text}
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=f'Пришли через пробел целевую и минимальную конверсии для теста. '
+                                     text=f'Пришли через пробел целевую и максимальную стоимость клика на плей. '
                                           f'Целевая - та, что считается нормальной для этого релиза. '
-                                          f'Минимальная - ниже которой сегменты не пройдут тест. '
-                                          f'Конверсии присылай в долях от единицы, то есть 4% = 0.04.\n'
-                                          f'Например: 0.04 0.03')
-            return 'get_rates'
+                                          f'Максимальная - выше которой сегменты не пройдут тест. '
+                                          f'Присылай в рублях с копейками через точку.\n'
+                                          f'Например: 1.00 1.30')
+            return 'get_costs'
         else:
             logging.info(f'AC - {update.effective_user.username} get text error on selecting campaign')
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Ты прислал что-то не то. Давай еще раз.')
             return 'select_campaign_to_start'
-
-
-def _ac_get_rates(update, context):
-    logging.info(f'AC - {update.effective_user.username} trying to set rates')
-
-    if _is_user_known(context, update):
-        user = DB.users.find_one({'user_id': update.effective_user.id})
-        text = update.message.text
-        text = text.split(' ')
-
-        if len(text) != 2:
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=f'Ты прислал что-то не то. Давай еще раз.')
-            return 'get_rates'
-        else:
-            try:
-                target_rate = float(text[0])
-                stop_rate = float(text[1])
-                start_campaign_settings[user['user_id']].update({'target_rate': target_rate, 'stop_rate': stop_rate})
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text=f'Пришли через пробел целевую и максимальную стоиомсть клика на плей в '
-                                              f'рублях. Я буду управлять кампанией, стараясь удерживать целевую '
-                                              f'стоимость клика, и буду останавливать сегменты, по которым не '
-                                              f'получается сделать стоиомость ниже максимальной.\n'
-                                              f'Например: 0.9 1.3')
-                logging.info(f'AC - {update.effective_user.username} set rates')
-                return 'get_costs'
-
-            except ValueError:
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text=f'Ты прислал что-то не то. Давай еще раз.')
-                return 'get_rates'
 
 
 def _ac_get_costs(update, context):
@@ -173,18 +140,39 @@ def _ac_get_cpm_update_interval(update, context):
             cpm_update_interval = int(text) * 60
             start_campaign_settings[user['user_id']].update({'cpm_update_interval': cpm_update_interval})
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=_ac_preparation_summary(update),
-                                     parse_mode=ParseMode.HTML,
-                                     reply_markup=ReplyKeyboardMarkup([['Да, запускай автоматизацию'],
-                                                                       ['Нет, давай заново']],
+                                     text='Когда надо запустить основной продвиг?',
+                                     reply_markup=ReplyKeyboardMarkup([['Сегодня',
+                                                                        'Завтра']],
                                                                       one_time_keyboard=True))
-            logging.info(f'AC - {update.effective_user.username} set cpm step and cpm limit')
-            return 'confirm_automate'
+            logging.info(f'AC - {update.effective_user.username} set cpm update interval')
+            return 'get_start_day'
 
         except ValueError:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Ты прислал что-то не то. Давай еще раз.')
             return 'get_cpm_update_interval'
+
+
+def _ac_start_day(update, context):
+    logging.info(f'AC - {update.effective_user.username} trying to set start day')
+
+    if _is_user_known(context, update):
+        user = DB.users.find_one({'user_id': update.effective_user.id})
+        text = update.message.text
+        if text == 'Сегодня':
+            start_campaign_settings['start_day'] = 'today'
+        elif text == 'Завтра':
+            start_campaign_settings['start_day'] = 'tomorrow'
+        else:
+            start_campaign_settings['start_day'] = 'tomorrow'
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text=_ac_preparation_summary(update),
+                                 parse_mode=ParseMode.HTML,
+                                 reply_markup=ReplyKeyboardMarkup([['Да, запускай автоматизацию'],
+                                                                   ['Нет, давай заново']],
+                                                                  one_time_keyboard=True))
+        logging.info(f'AC - {update.effective_user.username} choosing start or not')
+        return 'confirm_automate'
 
 
 def _ac_confirm_automate(update, context):
@@ -210,13 +198,12 @@ def _ac_confirm_automate(update, context):
             process = Process(target=automate_started_campaign, args=(
                 update,
                 campaign,
-                start_campaign_settings[user['user_id']]['target_rate'],
-                start_campaign_settings[user['user_id']]['stop_rate'],
                 start_campaign_settings[user['user_id']]['target_cost'],
                 start_campaign_settings[user['user_id']]['stop_cost'],
                 start_campaign_settings[user['user_id']]['cpm_step'],
                 start_campaign_settings[user['user_id']]['cpm_limit'],
-                start_campaign_settings[user['user_id']]['cpm_update_interval']
+                start_campaign_settings[user['user_id']]['cpm_update_interval'],
+                start_campaign_settings[user['user_id']]['start_day']
             ))
             process.start()
 
@@ -257,14 +244,14 @@ automate_campaign_handler = ConversationHandler(
     states={
         'select_campaign_to_start': [CommandHandler('reload', reload),
                                      MessageHandler(Filters.text, _ac_select_campaign_to_start)],
-        'get_rates': [CommandHandler('reload', reload),
-                      MessageHandler(Filters.text, _ac_get_rates)],
         'get_costs': [CommandHandler('reload', reload),
                       MessageHandler(Filters.text, _ac_get_costs)],
         'get_cpm_step_and_limit': [CommandHandler('reload', reload),
                                    MessageHandler(Filters.text, _ac_get_cpm_step_and_limit)],
         'get_cpm_update_interval': [CommandHandler('reload', reload),
                                     MessageHandler(Filters.text, _ac_get_cpm_update_interval)],
+        'get_start_day': [CommandHandler('reload', reload),
+                          MessageHandler(Filters.text, _ac_get_cpm_update_interval)],
         'confirm_automate': [CommandHandler('reload', reload),
                              MessageHandler(Filters.text, _ac_confirm_automate)]
     },

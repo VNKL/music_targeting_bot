@@ -17,6 +17,7 @@ def _wait_campaign_start(start_time):
 
 
 def _cpm_updating(ad_ids, ad_names, calculator, campaign, cpm_update_interval, end_time, vk):
+    vk.start_ads(ad_ids)
     time_now = datetime.datetime.now()
     while time_now < end_time:
         ads_stat = vk.get_ads_stat(cabinet_id=campaign['cabinet_id'], client_id=campaign['client_id'],
@@ -62,7 +63,7 @@ def _campaign_average_calculator(camp_stat, campaign, full_ads_stat, savers):
     return campaign_average
 
 
-def start_campaign_from_db(update, campaign, size=8000000, status='testing'):
+def start_campaign_from_db(update, campaign, size=8000000, status='started'):
     """
     Создает и запускает в рекламном кабинете кампанию, предварительно созданную в БД
 
@@ -91,17 +92,13 @@ def start_campaign_from_db(update, campaign, size=8000000, status='testing'):
     # Создает фейк паблик, если его не передали
     if fake_group_id is None:
         fake_group_id = vk.create_group(group_name=artist_name)
-
     # Добавляет трек в фейк паблик
     vk.add_audio_in_group(group_id=fake_group_id, track_name=f'{artist_name} - {track_name}')
-
     # Получает базы ретаргета {retarget_name: retarget_id}
     retarget = vk.get_retarget(cabinet_id=cabinet_id, client_id=client_id, size=size)
-
     # Создает плейлисты [playlist_url]
     playlists = vk.create_playlists(group_id=fake_group_id, playlist_name=track_name,
                                     cover_path=cover_path, count=len(retarget))
-
     # Создает дарк-посты {post_url: playlist_url}
     if citation is not None:
         text = f'ПРЕМЕЬРА\n \n' \
@@ -112,20 +109,15 @@ def start_campaign_from_db(update, campaign, size=8000000, status='testing'):
         text = f'ПРЕМЕЬРА\n \n' \
                f'@public{artist_group_id} ({artist_name.upper()} - {track_name})\n \n' \
                f'Слушай в ВК👇🏻'
-
     dark_posts = vk.create_dark_posts(group_id=artist_group_id, playlists=playlists, text=text)
-
     # Создает новую кампанию в кабинете
     campaign_id = vk.create_campaign(cabinet_id=cabinet_id, client_id=client_id, money_limit=campaign_budget,
                                      campaign_name=f'{artist_name.upper()} / {track_name}')
-
     # Создает объявления в новой кампании {ad_id: post_url}
     created_ads = vk.create_ads(cabinet_id=cabinet_id, client_id=client_id, campaign_id=campaign_id,
                                 retarget=retarget, posts=list(dark_posts.keys()), music=music_interest_filter)
-
     # Получает инфу о созданных объявлениях {ad_id, {'name': ad_name, 'cpm': ad_cpm, 'status': 1/0}
     ads_info = vk.get_ads(cabinet_id=cabinet_id, client_id=client_id, campaign_id=campaign_id)
-
     # Собирает полную инфу по объявлениям для записи в БД
     ads_full_info = {}
     for ad_id, post_url in created_ads.items():
@@ -155,68 +147,11 @@ def start_campaign_from_db(update, campaign, size=8000000, status='testing'):
     add_campaign_details_to_db(update, detailed_campaign)
 
 
-def automate_campaign_test(update, campaign, target_rate=0.04, stop_rate=0.03):
-    """
-    Автоматизирует тест кампании по заданным параметрам конверсии, удаляет плохие сегменты,
-    снимает лимиты с хороших сегментов, обновляет кампанию в БД
-
-    :param update: dict - словарь с обновляениями из телеги
-    :param campaign: dict - кампания из базы данных в виде словаря
-    :param target_rate: float - целевая конверсия в клик на плей из охвата
-    :param stop_rate: float - конверсия, ниже которой тест считается непройденным
-    :return: nothing
-    """
+def automate_started_campaign(update, campaign, target_cost=1., stop_cost=1.5, cpm_step=10., cpm_limit=120.,
+                              cpm_update_interval=1200, start_day='today'):
     user = DB.users.find_one({'user_id': update.effective_user.id})
     vk = VkBackend(ads_token=user['vk_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
-    calculator = CPMCalculator(target_rate=target_rate, stop_rate=stop_rate)
-
-    # Достает объявления из БД {ad_name: {'ad_id': int, 'post_url': str, 'playlist_url'}}
-    ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
-    ad_names = {name: x['ad_id'] for name, x in campaign['ads'].items()}
-    ad_playlists = {x['ad_id']: x['playlist_url'] for _, x in campaign['ads'].items()}
-
-    # Ожидание заверения теста
-    campaign_spent = 0
-    while campaign_spent < len(ad_ids) * 100:
-        campaign_stat = vk.get_campaign_stat(cabinet_id=campaign['cabinet_id'], campaign_id=campaign['campaign_id'])
-        campaign_spent = campaign_stat[campaign['campaign_id']]['spent']
-
-    # Получает стату объявлений {ad_id: {'name': str, 'spent': float, 'reach': int, 'cpm': cpm}}
-    ads_stat = vk.get_ads_stat(cabinet_id=campaign['cabinet_id'], client_id=campaign['client_id'],
-                               campaign_id=campaign['campaign_id'], ad_ids=ad_ids, ad_names=ad_names)
-
-    # Получает прослушивания плейлистов {playlist_url: playlist_listens}
-    listens = vk.get_playlist_listens(group_id=campaign['fake_group_id'], playlist_name=campaign['track_name'])
-
-    # Добавляет к стате объявлений прослушивания их плейлистов
-    ads_listens_stat = {}
-    for ad_id, ad_stat in ads_stat.items():
-        ad_listens = listens[ad_playlists[ad_id]]
-        ads_listens_stat[ad_id] = ad_stat
-        ads_listens_stat[ad_id].update({'listens': ad_listens})
-
-    # Получает объявления, которые прошли и не прошли тест
-    bad_ads = calculator.failed_ads(ads_stat)
-    good_ads = set(ad_ids) - set(bad_ads)
-
-    # Удаляет объявления, не прошедшие тест, и снимает ограничения с прошедших
-    vk.delete_ads(cabinet_id=campaign['cabinet_id'], ad_ids=bad_ads)
-    vk.limit_ads(cabinet_id=campaign['cabinet_id'], ad_ids=good_ads, limit=0)
-
-    # Обновляет кампанию в БД
-    updated_ads = {k: v for k, v in campaign['ads'].items() if v['ad_id'] in good_ads}
-    updated_campaign = campaign.copy()
-    updated_campaign['campaign_status'] = 'tested'
-    updated_campaign['ads'] = updated_ads
-    add_campaign_details_to_db(update, updated_campaign)
-
-
-def automate_started_campaign(update, campaign, target_rate=0.04, stop_rate=0.03, target_cost=1., stop_cost=1.5,
-                              cpm_step=10., cpm_limit=120., cpm_update_interval=1200):
-    user = DB.users.find_one({'user_id': update.effective_user.id})
-    vk = VkBackend(ads_token=user['vk_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
-    calculator = CPMCalculator(target_rate=target_rate, stop_rate=stop_rate, target_cost=target_cost,
-                               stop_cost=stop_cost, cpm_step=cpm_step, cpm_limit=cpm_limit)
+    calculator = CPMCalculator(target_cost=target_cost, stop_cost=stop_cost, cpm_step=cpm_step, cpm_limit=cpm_limit)
     ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
     ad_names = {name: x['ad_id'] for name, x in campaign['ads'].items()}
 
@@ -226,7 +161,14 @@ def automate_started_campaign(update, campaign, target_rate=0.04, stop_rate=0.03
 
     # Установка параметров остановки основной кампании
     today = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
-    end_time = today + datetime.timedelta(days=1)
+    if start_day == 'tomorrow':
+        end_time = today + datetime.timedelta(days=2)
+        now = datetime.datetime.now()
+        while now > end_time:
+            time.sleep(300)
+            now = datetime.datetime.now()
+    else:
+        end_time = today + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
 
     # Обновление СРМ
     updated_campaign = campaign.copy()
@@ -239,51 +181,6 @@ def automate_started_campaign(update, campaign, target_rate=0.04, stop_rate=0.03
     updated_campaign = campaign.copy()
     updated_campaign['campaign_status'] = 'finished'
     add_campaign_details_to_db(update, updated_campaign)
-
-
-def fully_automate_campaign(update, campaign, target_rate=0.04, stop_rate=0.03, target_cost=1., stop_cost=1.5,
-                            cpm_step=10., cpm_update_interval=1200, cpm_limit=120.):
-
-    user = DB.users.find_one({'user_id': update.effective_user.id})
-    vk = VkBackend(ads_token=user['vk_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
-    calculator = CPMCalculator(target_rate=target_rate, stop_rate=stop_rate, target_cost=target_cost,
-                               stop_cost=stop_cost, cpm_step=cpm_step, cpm_limit=cpm_limit)
-    campaign_name = f'{campaign["artist_name"].upper()} / {campaign["track_name"]}'
-
-    # Создание и запуск кампании в кабинете
-    start_campaign_from_db(update, campaign, status='automate')
-    campaign = get_campaigns_from_db(update)[campaign_name]
-
-    # Автоматизация теста кампании
-    automate_campaign_test(update, campaign, target_rate, stop_rate)
-
-    # Обновление кампании, записанной в БД после завершения теста
-    campaign = get_campaigns_from_db(update)[campaign_name]
-
-    # Установка параметров времени запуска и остановки основной части кампании
-    today = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
-    start_time = today + datetime.timedelta(days=1, hours=7)
-    end_time = today + datetime.timedelta(days=2)
-
-    # Ожидание наступления времени запуска основной части кампании и ее запуск
-    _wait_campaign_start(start_time)
-    ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
-    ad_names = {name: x['ad_id'] for name, x in campaign['ads'].items()}
-    vk.start_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
-
-    # Обвновление стату кампании в БД
-    camp_update = campaign.copy()
-    camp_update['campaign_status'] = 'automate'
-    add_campaign_details_to_db(update, camp_update)
-
-    # Обновление СРМ
-    _cpm_updating(ad_ids, ad_names, calculator, campaign, cpm_update_interval, end_time, vk)
-
-    # Остановка всех объявлений
-    vk.stop_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
-    camp_update = campaign.copy()
-    camp_update['campaign_status'] = 'finished'
-    add_campaign_details_to_db(update, camp_update)
 
 
 def get_campaign_average(campaign):
