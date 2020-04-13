@@ -161,7 +161,7 @@ def automate_started_campaign(update, campaign, target_cost=1., stop_cost=1.5, c
     vk = VkBackend(ads_token=user['vk_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
     calculator = CPMCalculator(target_cost=target_cost, stop_cost=stop_cost, cpm_step=cpm_step, cpm_limit=cpm_limit)
     ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
-    ad_names = {x['ad_id']:name for name, x in campaign['ads'].items()}
+    ad_names = {x['ad_id']: name for name, x in campaign['ads'].items()}
 
     # Снятие лимитов и запуск объявлений
     vk.limit_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids, limit=0)
@@ -181,16 +181,15 @@ def automate_started_campaign(update, campaign, target_cost=1., stop_cost=1.5, c
         end_time = today + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
 
     # Обновление СРМ
-    updated_campaign = campaign.copy()
-    updated_campaign['campaign_status'] = 'automate'
-    # add_campaign_details_to_db(update, updated_campaign)
+    updated_campaign = {f'{campaign["artist_name"].upper()} / {campaign["track_name"]}': campaign.copy()}
+    updated_campaign.update({'campaign_status': 'automate'})
+    add_campaign_details_to_db(update, updated_campaign)
     _cpm_updating(ad_ids, ad_names, calculator, campaign, cpm_update_interval, end_time, vk)
 
     # Остановка всех объявлений
     vk.stop_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
-    # updated_campaign = campaign.copy()
-    # updated_campaign.update({'campaign_status': 'finished'})
-    # add_campaign_details_to_db(update, updated_campaign)
+    updated_campaign.update({'campaign_status': 'finished'})
+    add_campaign_details_to_db(update, updated_campaign)
 
 
 def get_campaign_average(campaign):

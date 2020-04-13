@@ -12,6 +12,7 @@ from models.bot.handlers.command_handlers import reload
 
 
 start_campaign_settings = {}
+active_automated_campaigns = {}
 
 
 def _is_user_known(context, update):
@@ -141,7 +142,7 @@ def _ac_get_cpm_update_interval(update, context):
             start_campaign_settings[user['user_id']].update({'cpm_update_interval': cpm_update_interval})
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='Когда надо запустить основной продвиг?',
-                                     reply_markup=ReplyKeyboardMarkup([['Сегодня',
+                                     reply_markup=ReplyKeyboardMarkup([['Сейчас',
                                                                         'Завтра']],
                                                                       one_time_keyboard=True))
             logging.info(f'AC - {update.effective_user.username} set cpm update interval')
@@ -159,7 +160,7 @@ def _ac_start_day(update, context):
     if _is_user_known(context, update):
         user = DB.users.find_one({'user_id': update.effective_user.id})
         text = update.message.text
-        if text == 'Сегодня':
+        if text == 'Сейчас':
             start_campaign_settings[user['user_id']].update({'start_day': 'today'})
         elif text == 'Завтра':
             start_campaign_settings[user['user_id']].update({'start_day': 'tomorrow'})
@@ -195,6 +196,11 @@ def _ac_confirm_automate(update, context):
             logging.info(f'AC - {update.effective_user.username} confirmed automate')
             campaigns = get_campaigns_from_db(update)
             campaign = campaigns[start_campaign_settings[user['user_id']]['campaign_name']]
+            try:
+                active_automate_process = active_automated_campaigns[campaign]
+                active_automate_process.terminate()
+            except KeyError:
+                pass
             process = Process(target=automate_started_campaign, args=(
                 update,
                 campaign,
@@ -206,6 +212,7 @@ def _ac_confirm_automate(update, context):
                 start_campaign_settings[user['user_id']]['start_day']
             ))
             process.start()
+            active_automated_campaigns.update({campaign: process})
 
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Автоматизация запускается..',
