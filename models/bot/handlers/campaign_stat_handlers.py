@@ -16,7 +16,7 @@ camp_names = {}
 def _is_user_known(context, update):
     # Ищет пользователя в БД, и если его там нет, то шлет нахуй
     user = DB.users.find_one({'user_id': update.effective_user.id})
-    if not user:
+    if not user or user['permissions'] == 'unknown':
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text='Я тебя не знаю. Напиши @vnkl_iam. '
                                       'Может быть, он нас познакомит.')
@@ -91,6 +91,7 @@ def _cs_get_camp_stats(update, context):
 
 def _answer_for_campaign_stat(text, stat):
     terms_dict = {'spent': 'Потрачено',
+                  'reach': 'Охват',
                   'listens': 'Клики на плей',
                   'saves': 'Добавления',
                   'listen_rate': 'Конверсия в клики из охвата',

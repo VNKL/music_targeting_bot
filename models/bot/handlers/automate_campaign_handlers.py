@@ -17,7 +17,7 @@ start_campaign_settings = {}
 def _is_user_known(context, update):
     # Ищет пользователя в БД, и если его там нет, то шлет нахуй
     user = DB.users.find_one({'user_id': update.effective_user.id})
-    if not user:
+    if not user or user['permissions'] == 'unknown':
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text='Я тебя не знаю. Напиши @vnkl_iam. '
                                       'Может быть, он нас познакомит.')
@@ -160,11 +160,11 @@ def _ac_start_day(update, context):
         user = DB.users.find_one({'user_id': update.effective_user.id})
         text = update.message.text
         if text == 'Сегодня':
-            start_campaign_settings['start_day'] = 'today'
+            start_campaign_settings[user['user_id']].update({'start_day': 'today'})
         elif text == 'Завтра':
-            start_campaign_settings['start_day'] = 'tomorrow'
+            start_campaign_settings[user['user_id']].update({'start_day': 'tomorrow'})
         else:
-            start_campaign_settings['start_day'] = 'tomorrow'
+            start_campaign_settings[user['user_id']].update({'start_day': 'today'})
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text=_ac_preparation_summary(update),
                                  parse_mode=ParseMode.HTML,
@@ -251,7 +251,7 @@ automate_campaign_handler = ConversationHandler(
         'get_cpm_update_interval': [CommandHandler('reload', reload),
                                     MessageHandler(Filters.text, _ac_get_cpm_update_interval)],
         'get_start_day': [CommandHandler('reload', reload),
-                          MessageHandler(Filters.text, _ac_get_cpm_update_interval)],
+                          MessageHandler(Filters.text, _ac_start_day)],
         'confirm_automate': [CommandHandler('reload', reload),
                              MessageHandler(Filters.text, _ac_confirm_automate)]
     },

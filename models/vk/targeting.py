@@ -17,11 +17,10 @@ def _wait_campaign_start(start_time):
 
 
 def _cpm_updating(ad_ids, ad_names, calculator, campaign, cpm_update_interval, end_time, vk):
-    vk.start_ads(ad_ids)
+    # vk.start_ads(ad_ids)
     time_now = datetime.datetime.now()
     while time_now < end_time:
-        ads_stat = vk.get_ads_stat(cabinet_id=campaign['cabinet_id'], client_id=campaign['client_id'],
-                                   campaign_id=campaign['campaign_id'], ad_ids=ad_ids, ad_names=ad_names)
+        ads_stat = get_campaign_details(campaign)
         cpm_dict, stop_ads = calculator.updates_for_target_cost(ads_stat)
         vk.update_cpm(cabinet_id=campaign['cabinet_id'], cpm_dict=cpm_dict)
         vk.stop_ads(cabinet_id=campaign['cabinet_id'], ad_ids=stop_ads)
@@ -41,7 +40,10 @@ def _campaign_average_calculator(camp_stat, campaign, full_ads_stat, savers):
 
     if reach != 0:
         listens_rate = f'{round((listens / reach * 100), 2)} %'
-        save_rate = f'{round((savers / reach * 100), 2)} %'
+        if isinstance(savers, int):
+            save_rate = f'{round((savers / reach * 100), 2)} %'
+        else:
+            save_rate = '[ошибка, вк заболел]'
     else:
         listens_rate = None
         save_rate = None
@@ -52,18 +54,24 @@ def _campaign_average_calculator(camp_stat, campaign, full_ads_stat, savers):
         listens_cost = None
 
     if savers != 0:
-        save_cost = f'{round((spent / savers), 2)} руб.'
+        if isinstance(savers, int):
+            save_cost = f'{round((spent / savers), 2)} руб.'
+        else:
+            save_cost = '[ошибка, вк заболел]'
     else:
         save_cost = None
 
-    campaign_average = {'spent': spent, 'listens': listens, 'saves': savers,
+    if savers == None:
+        savers = '[ошибка, вк заболел]'
+
+    campaign_average = {'reach': reach, 'spent': spent, 'listens': listens, 'saves': savers,
                         'listen_rate': listens_rate, 'listen_cost': listens_cost,
                         'save_rate': save_rate, 'save_cost': save_cost}
 
     return campaign_average
 
 
-def start_campaign_from_db(update, campaign, size=8000000, status='started'):
+def start_campaign_from_db(update, campaign, size=500000):
     """
     Создает и запускает в рекламном кабинете кампанию, предварительно созданную в БД
 
@@ -128,7 +136,7 @@ def start_campaign_from_db(update, campaign, size=8000000, status='started'):
     detailed_campaign = {
         f'{artist_name.upper()} / {track_name}': {
             'campaign_id': campaign_id,
-            'campaign_status': status,
+            'campaign_status': 'started',
             'campaign_token': user['vk_token'],
             'cabinet_id': cabinet_id,
             'cabinet_name': cabinet_name,
@@ -153,11 +161,13 @@ def automate_started_campaign(update, campaign, target_cost=1., stop_cost=1.5, c
     vk = VkBackend(ads_token=user['vk_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
     calculator = CPMCalculator(target_cost=target_cost, stop_cost=stop_cost, cpm_step=cpm_step, cpm_limit=cpm_limit)
     ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
-    ad_names = {name: x['ad_id'] for name, x in campaign['ads'].items()}
+    ad_names = {x['ad_id']:name for name, x in campaign['ads'].items()}
 
     # Снятие лимитов и запуск объявлений
     vk.limit_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids, limit=0)
+    time.sleep(3)
     vk.start_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
+    time.sleep(3)
 
     # Установка параметров остановки основной кампании
     today = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
@@ -173,14 +183,14 @@ def automate_started_campaign(update, campaign, target_cost=1., stop_cost=1.5, c
     # Обновление СРМ
     updated_campaign = campaign.copy()
     updated_campaign['campaign_status'] = 'automate'
-    add_campaign_details_to_db(update, updated_campaign)
+    # add_campaign_details_to_db(update, updated_campaign)
     _cpm_updating(ad_ids, ad_names, calculator, campaign, cpm_update_interval, end_time, vk)
 
     # Остановка всех объявлений
     vk.stop_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
-    updated_campaign = campaign.copy()
-    updated_campaign['campaign_status'] = 'finished'
-    add_campaign_details_to_db(update, updated_campaign)
+    # updated_campaign = campaign.copy()
+    # updated_campaign.update({'campaign_status': 'finished'})
+    # add_campaign_details_to_db(update, updated_campaign)
 
 
 def get_campaign_average(campaign):

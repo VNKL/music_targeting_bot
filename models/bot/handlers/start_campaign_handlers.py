@@ -17,7 +17,7 @@ start_campaign_settings = {}
 def _is_user_known(context, update):
     # Ищет пользователя в БД, и если его там нет, то шлет нахуй
     user = DB.users.find_one({'user_id': update.effective_user.id})
-    if not user:
+    if not user or user['permissions'] == 'unknown':
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text='Я тебя не знаю. Напиши @vnkl_iam. '
                                       'Может быть, он нас познакомит.')
@@ -33,10 +33,16 @@ def _sc_select_campaign(update, context):
     if _is_user_known(context, update):
         campaigns = get_campaigns_from_db(update)
         camp_names = [[x] for x in list(campaigns.keys()) if campaigns[x]['campaign_status'] == 'created']
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text=f'Какую кампанию запускаем?',
-                                 reply_markup=ReplyKeyboardMarkup(camp_names, one_time_keyboard=True))
-        return 'select_campaign_to_start'
+        if camp_names:
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text=f'Какую кампанию запускаем?',
+                                     reply_markup=ReplyKeyboardMarkup(camp_names, one_time_keyboard=True))
+            return 'select_campaign_to_start'
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text=f'Нет кампаний, которые можно запустить',
+                                     reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
+            return ConversationHandler.END
 
 
 def _sc_select_campaign_to_start(update, context):

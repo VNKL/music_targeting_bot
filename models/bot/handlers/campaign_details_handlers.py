@@ -17,7 +17,7 @@ camp_name = None
 def _is_user_known(context, update):
     # Ищет пользователя в БД, и если его там нет, то шлет нахуй
     user = DB.users.find_one({'user_id': update.effective_user.id})
-    if not user:
+    if not user or user['permissions'] == 'unknown':
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text='Я тебя не знаю. Напиши @vnkl_iam. '
                                       'Может быть, он нас познакомит.')

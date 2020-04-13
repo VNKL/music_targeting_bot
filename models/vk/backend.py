@@ -1261,8 +1261,11 @@ class Bagosi:
         audios = soup.find_all(class_='mt-2')
 
         # Получаем количество сейверов последнего аудио
-        count = audios[0].find(class_='sub_text float-right').get_text()
-        count = int(count.replace(' ', ''))
+        try:
+            count = audios[0].find(class_='sub_text float-right').get_text()
+            count = int(count.replace(' ', ''))
+        except IndexError:
+            count = None
 
         return count
 
