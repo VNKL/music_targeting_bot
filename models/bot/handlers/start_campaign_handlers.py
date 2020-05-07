@@ -46,7 +46,7 @@ def _sc_select_campaign(update, context):
 
 
 def _sc_select_campaign_to_start(update, context):
-    logging.info(f'SC - {update.effective_user.username} trying to choose automate campaign or only start')
+    logging.info(f'SC - {update.effective_user.username} trying to start selected campaign')
 
     if _is_user_known(context, update):
         text = update.message.text

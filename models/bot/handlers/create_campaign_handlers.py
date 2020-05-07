@@ -204,6 +204,38 @@ def _nc_get_music_interest(update, context):
                 campaign_settings[user['user_id']].update({'music_interest_filter': True})
             elif text == 'Нет':
                 campaign_settings[user['user_id']].update({'music_interest_filter': False})
+
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text='Выбери пол для сужения по гендеру👇',
+                                     reply_markup=ReplyKeyboardMarkup([['Мужской'],
+                                                                       ['Женский'],
+                                                                       ['Любой']], one_time_keyboard=True))
+            return 'get_sex'
+
+
+
+def _nc_get_sex(update, context):
+    logging.info(f'CC - {update.effective_user.username} trying to set sex')
+
+    if _is_user_known(context, update):
+        user = DB.users.find_one({'user_id': update.effective_user.id})
+        text = update.message.text
+        if not text == 'Мужской' and not text == 'Женский' and not text == 'Любой':
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text='Ты прислал что-то не то. Выбери пол для сужения по гендеру👇',
+                                     reply_markup=ReplyKeyboardMarkup([['Мужской'],
+                                                                       ['Женский'],
+                                                                       ['Любой']], one_time_keyboard=True))
+            return 'get_sex'
+
+        else:
+            if text == 'Мужской':
+                campaign_settings[user['user_id']].update({'sex': 'male'})
+            elif text == 'Женский':
+                campaign_settings[user['user_id']].update({'sex': 'female'})
+            else:
+                campaign_settings[user['user_id']].update({'sex': None})
+
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='Пришли изображением (не файлом!) обложку для плейлистов.'
                                           'Или введи команду /skip_cover, если не будем грузить свою обложку.')
@@ -335,6 +367,8 @@ new_campaign_handler = ConversationHandler(
                            MessageHandler(Filters.regex('\d+'), _nc_get_fake_group)],
         'get_music_interest': [CommandHandler('reload', reload),
                                MessageHandler(Filters.text, _nc_get_music_interest)],
+        'get_sex': [CommandHandler('reload', reload),
+                    MessageHandler(Filters.text, _nc_get_sex)],
         'get_cover_img': [CommandHandler('reload', reload),
                           MessageHandler(Filters.photo, _nc_get_cover_img),
                           CommandHandler('skip_cover', _nc_skip_cover_img)],

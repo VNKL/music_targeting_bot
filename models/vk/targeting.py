@@ -17,7 +17,12 @@ def _wait_campaign_start(start_time):
 
 
 def _cpm_updating(ad_ids, ad_names, calculator, campaign, cpm_update_interval, end_time, vk):
-    # vk.start_ads(ad_ids)
+    # Снятие лимитов и запуск объявлений
+    vk.limit_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids, limit=0)
+    time.sleep(3)
+    vk.start_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
+    time.sleep(3)
+
     time_now = datetime.datetime.now()
     while time_now < end_time:
         ads_stat = get_campaign_details(campaign)
@@ -96,12 +101,13 @@ def start_campaign_from_db(update, campaign, size=500000):
     fake_group_id = campaign['fake_group_id']
     music_interest_filter = campaign['music_interest_filter']
     cover_path = campaign['cover_path']
+    sex = campaign['sex']
 
     # Создает фейк паблик, если его не передали
     if fake_group_id is None:
         fake_group_id = vk.create_group(group_name=artist_name)
-    # Добавляет трек в фейк паблик
-    vk.add_audio_in_group(group_id=fake_group_id, track_name=f'{artist_name} - {track_name}')
+        # Добавляет трек в фейк паблик
+        vk.add_audio_in_group(group_id=fake_group_id, track_name=f'{artist_name} - {track_name}')
     # Получает базы ретаргета {retarget_name: retarget_id}
     retarget = vk.get_retarget(cabinet_id=cabinet_id, client_id=client_id, size=size)
     # Создает плейлисты [playlist_url]
@@ -122,7 +128,7 @@ def start_campaign_from_db(update, campaign, size=500000):
     campaign_id = vk.create_campaign(cabinet_id=cabinet_id, client_id=client_id, money_limit=campaign_budget,
                                      campaign_name=f'{artist_name.upper()} / {track_name}')
     # Создает объявления в новой кампании {ad_id: post_url}
-    created_ads = vk.create_ads(cabinet_id=cabinet_id, client_id=client_id, campaign_id=campaign_id,
+    created_ads = vk.create_ads(cabinet_id=cabinet_id, client_id=client_id, campaign_id=campaign_id, sex=sex,
                                 retarget=retarget, posts=list(dark_posts.keys()), music=music_interest_filter)
     # Получает инфу о созданных объявлениях {ad_id, {'name': ad_name, 'cpm': ad_cpm, 'status': 1/0}
     ads_info = vk.get_ads(cabinet_id=cabinet_id, client_id=client_id, campaign_id=campaign_id)
@@ -163,32 +169,30 @@ def automate_started_campaign(update, campaign, target_cost=1., stop_cost=1.5, c
     ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
     ad_names = {x['ad_id']: name for name, x in campaign['ads'].items()}
 
-    # Снятие лимитов и запуск объявлений
-    vk.limit_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids, limit=0)
-    time.sleep(3)
-    vk.start_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
-    time.sleep(3)
-
     # Установка параметров остановки основной кампании
-    today = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
     if start_day == 'tomorrow':
-        end_time = today + datetime.timedelta(days=2)
+        today = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
+        start_time = today + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
         now = datetime.datetime.now()
-        while now > end_time:
+        while now < start_time:
             time.sleep(300)
             now = datetime.datetime.now()
+        today = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
     else:
-        end_time = today + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
+        today = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
+    end_time = today + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
 
     # Обновление СРМ
-    updated_campaign = {f'{campaign["artist_name"].upper()} / {campaign["track_name"]}': campaign.copy()}
-    updated_campaign.update({'campaign_status': 'automate'})
+    campaign_copy = campaign.copy()
+    campaign_copy.update({'campaign_status': 'automate'})
+    updated_campaign = {f'{campaign["artist_name"].upper()} / {campaign["track_name"]}': campaign_copy}
     add_campaign_details_to_db(update, updated_campaign)
     _cpm_updating(ad_ids, ad_names, calculator, campaign, cpm_update_interval, end_time, vk)
 
     # Остановка всех объявлений
     vk.stop_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
-    updated_campaign.update({'campaign_status': 'finished'})
+    campaign_copy.update({'campaign_status': 'finished'})
+    updated_campaign = {f'{campaign["artist_name"].upper()} / {campaign["track_name"]}': campaign_copy}
     add_campaign_details_to_db(update, updated_campaign)
 
 

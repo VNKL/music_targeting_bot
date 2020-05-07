@@ -12,6 +12,8 @@ from models.bot.handlers.command_handlers import reload
 
 camp_names = {}
 camp_name = None
+camps_for_cabinets = {}
+camps_for_selected_cab = {}
 
 
 def _is_user_known(context, update):
@@ -27,13 +29,59 @@ def _is_user_known(context, update):
         return True
 
 
+def _cd_select_cabinet(update, context):
+    logging.info(f'CD - {update.effective_user.username} trying to select cabinet to get campaign details')
+
+    if _is_user_known(context, update):
+        campaigns = get_campaigns_from_db(update)
+        for name, params in campaigns.items():
+            try:
+                cab_name = params['client_name']
+            except KeyError:
+                cab_name = params['cabinet_name']
+            global camps_for_cabinets
+            try:
+                camps_for_cabinets_temp = camps_for_cabinets[cab_name]
+                camps_for_cabinets_temp.update({name: params})
+                camps_for_cabinets.update({cab_name: camps_for_cabinets_temp})
+            except KeyError:
+                camps_for_cabinets[cab_name] = {name: params}
+            global camp_names
+            camp_names.update({name: params})
+
+        keyboard = [[cabinet] for cabinet in list(camps_for_cabinets.keys())]
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text='Выбери кабинет👇🏻',
+                                 reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True))
+        return 'select_camp_status'
+
+
+def _cd_select_camp_status(update, context):
+    logging.info(f'CD - {update.effective_user.username} trying to select campaign status to get campaign details')
+
+    if _is_user_known(context, update):
+        cab_name = update.message.text
+        global camps_for_cabinets
+        global camps_for_selected_cab
+        campaigns = camps_for_cabinets[cab_name]
+        camps_for_selected_cab = campaigns
+        statuses = [params['campaign_status'] for _, params in campaigns.items()]
+        keyboard = [[status] for status in set(statuses)]
+
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text='Выбери статус кампании👇🏻',
+                                 reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True))
+        return 'select_campaign'
+
+
 def _cd_select_campaign(update, context):
     logging.info(f'CD - {update.effective_user.username} trying to select campaign to get details')
 
     if _is_user_known(context, update):
-        campaigns = get_campaigns_from_db(update)
-        keyboard = [[f'{name} (is {v["campaign_status"]})'] for name, v in campaigns.items() if
-                                                            v['campaign_status'] != 'created']
+        global camps_for_selected_cab
+        campaigns = camps_for_selected_cab
+        status = update.message.text
+        keyboard = [[name] for name, params in campaigns.items() if params['campaign_status'] == status]
 
         for name, v in campaigns.items():
             camp_names[f'{name} (is {v["campaign_status"]})'] = name
@@ -67,7 +115,8 @@ def _cd_get_sort_type(update, context):
                                      reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True))
             return 'get_camp_details'
         else:
-            campaigns = get_campaigns_from_db(update)
+            global camps_for_selected_cab
+            campaigns = camps_for_selected_cab
             keyboard = [[f'{name} (is {v["campaign_status"]})'] for name, v in campaigns.items() if
                         v['campaign_status'] != 'created']
             context.bot.send_message(chat_id=update.effective_chat.id,
@@ -80,7 +129,8 @@ def _cd_get_camp_details(update, context):
 
     if _is_user_known(context, update):
         text = update.message.text
-        campaigns = get_campaigns_from_db(update)
+        global camps_for_selected_cab
+        campaigns = camps_for_selected_cab
 
         sort_types = ['Сортировка по названию базы', 'Сортировка по кликам на плей',
                       'Сортировка по стоимости клика', 'Сортировка по конверсии в клики']
@@ -93,7 +143,7 @@ def _cd_get_camp_details(update, context):
                                      text=help_text,
                                      parse_mode=ParseMode.HTML)
 
-            campaign = campaigns[camp_names[camp_name]]
+            campaign = campaigns[camp_name]
             stat = get_campaign_details(campaign)
             answer = _answer_for_campaign_details(stat, text)
 
@@ -109,7 +159,7 @@ def _cd_get_camp_details(update, context):
                                              text=batch,
                                              parse_mode=ParseMode.HTML,
                                              reply_markup=ReplyKeyboardMarkup(MAIN_SPECTATOR_KEYBOARD))
-            logging.info(f'CD - {update.effective_user.username} get campaign details')
+            logging.info(f'CD - {update.effective_user.username} get campaign details: {camp_name}')
             return ConversationHandler.END
 
         else:
@@ -201,8 +251,12 @@ def _cd_failback(update, context):
 
 # Диалог по получению статы кампании
 campaign_details_handler = ConversationHandler(
-    entry_points=[MessageHandler(Filters.regex('^(Получить детализацию кампании)$'), _cd_select_campaign)],
+    entry_points=[MessageHandler(Filters.regex('^(Получить детализацию кампании)$'), _cd_select_cabinet)],
     states={
+        'select_camp_status': [CommandHandler('reload', reload),
+                               MessageHandler(Filters.text, _cd_select_camp_status)],
+        'select_campaign': [CommandHandler('reload', reload),
+                            MessageHandler(Filters.text, _cd_select_campaign)],
         'get_sort_type': [CommandHandler('reload', reload),
                           MessageHandler(Filters.text, _cd_get_sort_type)],
         'get_camp_details': [CommandHandler('reload', reload),

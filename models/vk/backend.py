@@ -166,7 +166,7 @@ class VkBackend:
         """
         return self.AdsBackend.create_campaign(cabinet_id, campaign_name, money_limit, client_id)
 
-    def create_ads(self, cabinet_id, campaign_id, retarget, posts, music=True, client_id=None):
+    def create_ads(self, cabinet_id, campaign_id, retarget, posts, music=True, client_id=None, sex=None):
         """
         Создание объявлений в выбранной кампании
 
@@ -178,7 +178,7 @@ class VkBackend:
         :param music: True - с сужением по интересу музыка, False - без сужения
         :return: dict - {ad_id: post_url}
         """
-        return self.AdsBackend.create_ads(cabinet_id, campaign_id, retarget, posts, music, client_id)
+        return self.AdsBackend.create_ads(cabinet_id, campaign_id, retarget, posts, music, client_id, sex)
 
     def create_playlists(self, group_id, playlist_name, cover_path=None, count=1):
         """
@@ -372,7 +372,7 @@ class VkAudioBackend:
         try:
             # Click on "add playlist" button
             add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
+                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
             add_btn.click()
             time.sleep(1)
 
@@ -388,7 +388,7 @@ class VkAudioBackend:
             select_btn.click()
             time.sleep(1)
             audio_flag = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[5]/div/div[1]')))
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[3]/div/div[1]')))
             audio_flag.click()
             time.sleep(1)
             save_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
@@ -413,7 +413,7 @@ class VkAudioBackend:
         try:
             # Click on "add playlist" button
             add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
+                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
             add_btn.click()
 
             # Upload cover from cover_path
@@ -432,7 +432,7 @@ class VkAudioBackend:
                 (By.XPATH, '//*[@id="ape_add_audios_btn"]')))
             select_btn.click()
             audio_flag = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[5]/div/div[1]')))
+                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[3]/div/div[1]')))
             audio_flag.click()
             save_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
                 (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/table/tbody/tr/td/button')))
@@ -452,7 +452,7 @@ class VkAudioBackend:
 
         try:
             add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
+                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
             add_btn.click()
 
             # Click on "choise from my audios"
@@ -467,7 +467,7 @@ class VkAudioBackend:
 
             # Click on most relevant search result
             add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[5]/div[1]/div[1]')))
+                (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[3]/div[1]/div[1]')))
             add_btn.click()
 
             # Check for success
@@ -481,9 +481,11 @@ class VkAudioBackend:
                 return False
 
         except selenium.common.exceptions.ElementClickInterceptedException:
+            print('some error with add audio from user - ElementClickInterceptedException')
             return self.add_audio_in_group(group_id, track_name)
 
         except selenium.common.exceptions.TimeoutException:
+            print('some error with add audio from user - TimeoutException')
             return self.add_audio_in_group(group_id, track_name)
 
     def _check_browser_auth(self):
@@ -534,7 +536,7 @@ class VkAudioBackend:
         # Click on "add audio" button
         try:
             add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
+                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
             add_btn.click()
             time.sleep(1)
 
@@ -552,7 +554,7 @@ class VkAudioBackend:
 
             # Click on most relevant search result
             add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[5]/div[2]/div[1]')))
+                (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[3]/div[2]/div[1]')))
             add_btn.click()
 
             # Check for success
@@ -566,15 +568,16 @@ class VkAudioBackend:
                 return False
 
         except selenium.common.exceptions.ElementClickInterceptedException:
+            print('some error with add audio from search - ElementClickInterceptedException')
             return self._add_audio_from_users_audio(group_id, track_name)
 
         except selenium.common.exceptions.TimeoutException:
+            print('some error with add audio from search - TimeoutException')
             return self._add_audio_from_users_audio(group_id, track_name)
 
         except selenium.common.exceptions.ElementNotInteractableException:
-            self.browser.refresh()
-            time.sleep(1)
-            return self.add_audio_in_group(group_id, track_name)
+            print('some error with add audio from search - ElementNotInteractableException')
+            return self._add_audio_from_users_audio(group_id, track_name)
 
     def create_playlists(self, group_id, playlist_name, cover_path=None, count=1):
         """ Создание плейлистов в паблике """
@@ -748,7 +751,7 @@ class VkAdsBackend:
                   f'access_token={self.token}&v=5.103'
         return url
 
-    def _data_for_ads_without_music(self, base_id, base_name, campaign_id, post):
+    def _data_for_ads_without_music(self, base_id, base_name, campaign_id, post, sex):
         data = [{
             'campaign_id': campaign_id,             # Айди кампании
             'ad_format': 9,                         # Формат объявления, 9 - посты
@@ -765,11 +768,12 @@ class VkAdsBackend:
             'link_url': post,                       # Ссылка на дарк-пост
             'country': 0,                           # Страна, 0 - не задана
             'user_devices': 1001,                   # Устройства, 1001 - смартфоны
-            'retargeting_groups': base_id           # База ретаргета
+            'retargeting_groups': base_id,          # База ретаргета
+            'sex': sex  # Пол, 0 - любой, 1 - женский, 2 - мужской
         }]
         return data
 
-    def _data_for_ads_with_music(self, base_id, base_name, campaign_id, post):
+    def _data_for_ads_with_music(self, base_id, base_name, campaign_id, post, sex):
         data = [{
             'campaign_id': campaign_id,             # Айди кампании
             'ad_format': 9,                         # Формат объявления, 9 - посты
@@ -787,7 +791,8 @@ class VkAdsBackend:
             'country': 0,                           # Страна, 0 - не задана
             'interest_categories': 10010,           # Категории интересов, 10010 - музыка
             'user_devices': 1001,                   # Устройства, 1001 - смартфоны
-            'retargeting_groups': base_id           # База ретаргета
+            'retargeting_groups': base_id,          # База ретаргета
+            'sex': sex                              # Пол, 0 - любой, 1 - женский, 2 - мужской
         }]
         return data
 
@@ -933,10 +938,16 @@ class VkAdsBackend:
         for i in resp['response']:
             if i['stats']:
                 cpm = float(get_ads[i['id']]['cpm']) / 100
-                ads_stats[i['id']] = {'name': ad_names[i['id']],
-                                      'spent': float(i['stats'][0]['spent']),
-                                      'reach': i['stats'][0]['impressions'],
-                                      'cpm': cpm}
+                try:
+                    ads_stats[i['id']] = {'name': ad_names[i['id']],
+                                          'spent': float(i['stats'][0]['spent']),
+                                          'reach': i['stats'][0]['impressions'],
+                                          'cpm': cpm}
+                except KeyError:
+                    ads_stats[i['id']] = {'name': ad_names[i['id']],
+                                          'spent': 0.0,
+                                          'reach': 0.0,
+                                          'cpm': cpm}
             else:
                 cpm = float(get_ads[i['id']]['cpm']) / 100
                 ads_stats[i['id']] = {'name': ad_names[i['id']],
@@ -1029,7 +1040,7 @@ class VkAdsBackend:
             print('Some error with create_campaign')
             print(resp)
 
-    def create_ads(self, cabinet_id, campaign_id, retarget, posts, music=True, client_id=None):
+    def create_ads(self, cabinet_id, campaign_id, retarget, posts, music=True, client_id=None, sex=None):
         """
         Создание объявлений в выбранной кампании
 
@@ -1043,15 +1054,22 @@ class VkAdsBackend:
         :return:                dict - {ad_id: post_url}
 
         """
+        if sex == 'male':
+            sex = 2
+        elif sex == 'female':
+            sex = 1
+        else:
+            sex = 0
+
         # Цикл для создания объявлений для каждой базы ретаргета
         ads_and_posts = {}
         for n, (base_name, base_id) in enumerate(retarget.items()):
             # С сужением по интересу "музыка"
             if music is True:
-                data = self._data_for_ads_with_music(base_id, base_name, campaign_id, posts[n])
+                data = self._data_for_ads_with_music(base_id, base_name, campaign_id, posts[n], sex)
             else:
                 # Без сужения по интересу
-                data = self._data_for_ads_without_music(base_id, base_name, campaign_id, posts[n])
+                data = self._data_for_ads_without_music(base_id, base_name, campaign_id, posts[n], sex)
 
             data = json.dumps(data)
             url = self._url_for_create_ads(cabinet_id, client_id, data)

@@ -33,7 +33,8 @@ def _ac_select_campaign(update, context):
 
     if _is_user_known(context, update):
         campaigns = get_campaigns_from_db(update)
-        camp_names = [[x] for x in list(campaigns.keys()) if campaigns[x]['campaign_status'] == 'started']
+        camp_names = [[x] for x in list(campaigns.keys()) if campaigns[x]['campaign_status'] == 'started' or
+                                                             campaigns[x]['campaign_status'] == 'automate']
         if len(camp_names) != 0:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Какую кампанию автоматизируем?',
@@ -54,7 +55,7 @@ def _ac_select_campaign_to_start(update, context):
         text = update.message.text
         campaigns = get_campaigns_from_db(update)
         if text in list(campaigns.keys()):
-            logging.info(f'AC - {update.effective_user.username} selected campaign to automate ')
+            logging.info(f'AC - {update.effective_user.username} selected campaign to automate: {text}')
 
             start_campaign_settings[user['user_id']] = {'campaign_name': text}
             context.bot.send_message(chat_id=update.effective_chat.id,
@@ -197,7 +198,7 @@ def _ac_confirm_automate(update, context):
             campaigns = get_campaigns_from_db(update)
             campaign = campaigns[start_campaign_settings[user['user_id']]['campaign_name']]
             try:
-                active_automate_process = active_automated_campaigns[campaign]
+                active_automate_process = active_automated_campaigns[campaign['campaign_id']]
                 active_automate_process.terminate()
             except KeyError:
                 pass
@@ -212,7 +213,7 @@ def _ac_confirm_automate(update, context):
                 start_campaign_settings[user['user_id']]['start_day']
             ))
             process.start()
-            active_automated_campaigns.update({campaign: process})
+            active_automated_campaigns.update({campaign['campaign_id']: process})
 
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=f'Автоматизация запускается..',

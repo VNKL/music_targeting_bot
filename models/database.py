@@ -141,6 +141,7 @@ def add_campaign_setting_to_db(update, campaign_settings):
             'artist_group_id': settings['artist_group_id'],
             'fake_group_id': settings['fake_group_id'],
             'music_interest_filter': settings['music_interest_filter'],
+            'sex': settings['sex'],
             'cover_path': settings['cover_path']}}
 
     settings_to_set = camp_old.copy()
