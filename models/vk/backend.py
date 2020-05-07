@@ -1,6 +1,5 @@
 """ Use python 3.7 """
 
-import selenium
 from selenium import webdriver
 from bs4 import BeautifulSoup
 import re
@@ -12,6 +11,7 @@ import pickle
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common import exceptions
 
 
 class VkBackend:
@@ -250,53 +250,6 @@ class VkAudioBackend:
         self.session = requests.session()
         self.is_auth = False
 
-    def _config_selenium(self, headless):
-        """
-        Конфигурация selenium (headless или с интерфейсом)
-
-        """
-        chrome_options = webdriver.ChromeOptions()
-        prefs = {"profile.managed_default_content_settings.images": 2}
-        chrome_options.add_experimental_option("prefs", prefs)
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
-        if headless is True:
-            chrome_options.add_argument('headless')
-        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/'
-                                    '537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36 Edge/18.17763')
-        browser = webdriver.Chrome('C:\chromedriver\chromedriver.exe', options=chrome_options)
-        return browser
-
-    def _auth_without_coockies(self):
-        self.browser.get('http://www.vk.com')
-        login = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_email')))
-        password = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_pass')))
-        enter = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_login_button')))
-        login.send_keys(self.login)
-        password.send_keys(self.password)
-        enter.click()
-        time.sleep(1)
-        if self.browser.current_url == 'https://vk.com/feed':
-            print('successfully auth on vk.com')
-            cookies = self.browser.get_cookies()
-            with open(f'C:\chromedriver\coockies_{self.login}.pkl', 'wb') as file:
-                pickle.dump(cookies, file)
-        elif self.browser.current_url == 'https://vk.com/login?act=authcheck':
-            two_fact_form = self.browser.find_element_by_xpath('//*[@id="authcheck_code"]')
-            two_fact_code = input('Введи код двухфакторной аутентификации: ')
-            two_fact_form.send_keys(two_fact_code)
-            submit_btn = self.browser.find_element_by_xpath('//*[@id="login_authcheck_submit_btn"]')
-            submit_btn.click()
-            time.sleep(3)
-            if self.browser.current_url == 'https://vk.com/feed':
-                print('successfully auth on vk.com')
-                cookies = self.browser.get_cookies()
-                with open(f'C:\chromedriver\chromedriver.exe\coockies_{self.login}.pkl', 'wb') as file:
-                    pickle.dump(cookies, file)
-            else:
-                raise RuntimeError('something wrong with login on vk.com, run with headless=False to see it')
-        else:
-            raise RuntimeError('something wrong with login on vk.com, run with headless=False to see it')
-
     def _auth_with_coockies(self):
         with open(f'C:\chromedriver\coockies_{self.login}.pkl', 'rb') as file:
             cookies_load = pickle.load(file)
@@ -315,6 +268,195 @@ class VkAudioBackend:
                 print('successfully auth on vk.com')
             else:
                 self._auth_without_coockies()
+
+    def _auth_without_coockies(self):
+        self._send_login_to_form()
+        if self.browser.current_url == 'https://vk.com/feed':
+            print('successfully auth on vk.com')
+            self._save_cookies()
+        elif self.browser.current_url == 'https://vk.com/login?act=authcheck':
+            self._set_two_fact_code()
+            if self.browser.current_url == 'https://vk.com/feed':
+                self._save_cookies()
+            else:
+                raise RuntimeError('something wrong with login on vk.com, run with headless=False to see it')
+        else:
+            raise RuntimeError('something wrong with login on vk.com, run with headless=False to see it')
+
+    def _check_browser_auth(self):
+        if self.is_auth is False:
+            self.browser_auth()
+            self.is_auth = True
+
+    def _click_on_add_playlist_or_audio_in_group(self, button_key):
+        add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
+            (By.XPATH, f'//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[{button_key}]')))
+        add_btn.click()
+        time.sleep(1)
+
+    def _click_on_add_audios_in_playlist(self):
+        select_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
+            (By.XPATH, '//*[@id="ape_add_audios_btn"]')))
+        select_btn.click()
+        time.sleep(1)
+
+    def _click_on_chose_from_my_audios(self):
+        add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
+            (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/div[2]/a')))
+        add_btn.click()
+        time.sleep(1)
+
+    def _click_on_first_result(self, xpath_key=2):
+        if xpath_key < 0:
+            raise RuntimeError('vk changed something with add audio in group')
+        try:
+            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
+                (By.XPATH, f'//*[@id="box_layer"]/div[3]/div/div[2]/div/div[3]/div[{xpath_key}]/div[1]')))
+            add_btn.click()
+        except exceptions.TimeoutException:
+            self._click_on_first_result(xpath_key=xpath_key-1)
+
+    def _click_on_flag_right_audio(self):
+        audio_flag = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
+            (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[3]/div/div[1]')))
+        audio_flag.click()
+        time.sleep(1)
+
+    def _click_on_save_playlist(self):
+        save_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
+            (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/table/tbody/tr/td/button')))
+        save_btn.click()
+        time.sleep(1)
+
+    def _config_selenium(self, headless):
+        """
+        Конфигурация selenium (headless или с интерфейсом)
+
+        """
+        chrome_options = webdriver.ChromeOptions()
+        prefs = {"profile.managed_default_content_settings.images": 2}
+        chrome_options.add_experimental_option("prefs", prefs)
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
+        if headless is True:
+            chrome_options.add_argument('headless')
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/'
+                                    '537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36 Edge/18.17763')
+        browser = webdriver.Chrome('C:\chromedriver\chromedriver.exe', options=chrome_options)
+        return browser
+
+    def _create_one_playlist(self, count, cover_path, group_id, n, playlist_name):
+        if cover_path is None:
+            self._create_playlist_without_cover(group_id, playlist_name)
+        else:
+            self._create_playlist_with_cover(group_id, playlist_name, cover_path)
+        print(f'playlist {n + 1} / {count} created')
+
+    def _create_playlist_without_cover(self, group_id, playlist_name, button_key=1):
+        """
+        Добавляет в аудиозаписи паблика плейлист без обложки
+        (обложка тянется из единственного трека в этом плейлсите)
+
+        """
+        if self.browser.current_url != f'https://vk.com/audios-{group_id}':
+            self.browser.get(f'https://vk.com/audios-{group_id}')
+
+        if button_key > 2:
+            raise RuntimeError('vk changed something in adding playlists')
+
+        try:
+            self._click_on_add_playlist_or_audio_in_group(button_key)
+            self._paste_playlist_name_in_form(playlist_name)
+            self._click_on_add_audios_in_playlist()
+            self._click_on_flag_right_audio()
+            self._click_on_save_playlist()
+
+        except exceptions.TimeoutException:
+            self.browser.refresh()
+            self._create_playlist_without_cover(group_id, playlist_name, button_key=button_key+1)
+
+        except exceptions.ElementClickInterceptedException:
+            self.browser.refresh()
+            self._create_playlist_without_cover(group_id, playlist_name)
+
+    def _create_playlist_with_cover(self, group_id, playlist_name, cover_path, button_key=1):
+        """" Добавление в аудиозаписи паблика плейлиста со своей обложкой """
+
+        if self.browser.current_url != f'https://vk.com/audios-{group_id}':
+            self.browser.get(f'https://vk.com/audios-{group_id}')
+
+        if button_key > 2:
+            raise RuntimeError('vk changed something in adding playlists')
+
+        try:
+            self._click_on_add_playlist_or_audio_in_group(button_key)
+            self._upload_cover_to_playlist(cover_path)
+            self._paste_playlist_name_in_form(playlist_name)
+            self._click_on_add_audios_in_playlist()
+            self._click_on_flag_right_audio()
+            self._click_on_save_playlist()
+
+        except exceptions.TimeoutException:
+            self.browser.refresh()
+            self._create_playlist_with_cover(group_id, playlist_name, cover_path, button_key=button_key+1)
+
+        except exceptions.ElementClickInterceptedException:
+            self.browser.refresh()
+            self._create_playlist_with_cover(group_id, playlist_name, cover_path)
+
+    def _past_audio_name_in_search_form(self, track_name):
+        search_form = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
+            (By.XPATH, '//*[@id="ape_edit_playlist_search"]')))
+        search_form.send_keys(track_name)
+        time.sleep(1)
+
+    def _paste_playlist_name_in_form(self, playlist_name):
+        form = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
+            (By.XPATH, '//*[@id="ape_pl_name"]')))
+        form.send_keys(playlist_name)
+        time.sleep(1)
+
+    def _playlists_page_scroll(self, group_id):
+        self._check_browser_auth()
+        self.browser.get(f'https://vk.com/audios-{group_id}?section=playlists')
+        time.sleep(1)
+
+        # Scroll to page bottom
+        last_height = self.browser.execute_script("return document.body.scrollHeight")
+        while True:
+            # Scroll down to bottom
+            self.browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+            # Wait to load page
+            time.sleep(0.5)
+
+            # Calculate new scroll height and compare with last scroll height
+            new_height = self.browser.execute_script("return document.body.scrollHeight")
+            if new_height == last_height:
+                break
+            last_height = new_height
+
+    def _send_login_to_form(self):
+        self.browser.get('http://www.vk.com')
+        login = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_email')))
+        password = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_pass')))
+        enter = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'index_login_button')))
+        login.send_keys(self.login)
+        password.send_keys(self.password)
+        enter.click()
+        time.sleep(1)
+
+    def _save_cookies(self):
+        cookies = self.browser.get_cookies()
+        with open(f'C:\chromedriver\coockies_{self.login}.pkl', 'wb') as file:
+            pickle.dump(cookies, file)
+
+    def _set_two_fact_code(self):
+        two_fact_form = self.browser.find_element_by_xpath('//*[@id="authcheck_code"]')
+        two_fact_code = input('Введи код двухфакторной аутентификации: ')
+        two_fact_form.send_keys(two_fact_code)
+        submit_btn = self.browser.find_element_by_xpath('//*[@id="login_authcheck_submit_btn"]')
+        submit_btn.click()
+        time.sleep(3)
 
     def _set_group_params(self, group_id, user_id):
         time.sleep(1)
@@ -340,135 +482,26 @@ class VkAudioBackend:
         except KeyError:
             print(resp)
 
-    def _playlists_page_scroll(self, group_id):
+    def _upload_cover_to_playlist(self, cover_path):
+        cover_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
+            (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[1]/div[2]/input')))
+        cover_btn.send_keys(cover_path)
+        time.sleep(2)
+
+    def add_audio_in_group(self, group_id, track_name, button_key=2):
+        """ Поиск и добавление трека в аудиозаписи паблика """
         self._check_browser_auth()
-        self.browser.get(f'https://vk.com/audios-{group_id}?section=playlists')
-        time.sleep(1)
-
-        # Scroll to page bottom
-        last_height = self.browser.execute_script("return document.body.scrollHeight")
-        while True:
-            # Scroll down to bottom
-            self.browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
-            # Wait to load page
-            time.sleep(0.5)
-
-            # Calculate new scroll height and compare with last scroll height
-            new_height = self.browser.execute_script("return document.body.scrollHeight")
-            if new_height == last_height:
-                break
-            last_height = new_height
-
-    def _create_playlist_without_cover(self, group_id, playlist_name):
-        """
-        Добавляет в аудиозаписи паблика плейлист без обложки
-        (обложка тянется из единственного трека в этом плейлсите)
-
-        """
-        if self.browser.current_url != f'https://vk.com/audios-{group_id}':
-            self.browser.get(f'https://vk.com/audios-{group_id}')
-
-        try:
-            # Click on "add playlist" button
-            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
-            add_btn.click()
-            time.sleep(1)
-
-            # Paste playlist_name in form
-            form = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="ape_pl_name"]')))
-            form.send_keys(playlist_name)
-            time.sleep(1)
-
-            # Select last group audio and create playlist
-            select_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="ape_add_audios_btn"]')))
-            select_btn.click()
-            time.sleep(1)
-            audio_flag = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[3]/div/div[1]')))
-            audio_flag.click()
-            time.sleep(1)
-            save_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/table/tbody/tr/td/button')))
-            save_btn.click()
-            time.sleep(1)
-
-        except selenium.common.exceptions.TimeoutException:
-            self.browser.refresh()
-            self._create_playlist_without_cover(group_id, playlist_name)
-
-        except selenium.common.exceptions.ElementClickInterceptedException:
-            self.browser.refresh()
-            self._create_playlist_without_cover(group_id, playlist_name)
-
-    def _create_playlist_with_cover(self, group_id, playlist_name, cover_path):
-        """" Добавление в аудиозаписи паблика плейлиста со своей обложкой """
-
-        if self.browser.current_url != f'https://vk.com/audios-{group_id}':
-            self.browser.get(f'https://vk.com/audios-{group_id}')
-
-        try:
-            # Click on "add playlist" button
-            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[1]')))
-            add_btn.click()
-
-            # Upload cover from cover_path
-            cover_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[1]/div[2]/input')))
-            cover_btn.send_keys(cover_path)
-            time.sleep(2)
-
-            # Paste playlist_name in form
-            form = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="ape_pl_name"]')))
-            form.send_keys(playlist_name)
-
-            # Select last group audio and create playlist
-            select_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="ape_add_audios_btn"]')))
-            select_btn.click()
-            audio_flag = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[2]/div/div[3]/div/div[1]')))
-            audio_flag.click()
-            save_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/table/tbody/tr/td/button')))
-            save_btn.click()
-
-        except selenium.common.exceptions.TimeoutException:
-            self.browser.refresh()
-            self._create_playlist_with_cover(group_id, playlist_name, cover_path)
-
-        except selenium.common.exceptions.ElementClickInterceptedException:
-            self.browser.refresh()
-            self._create_playlist_with_cover(group_id, playlist_name, cover_path)
-
-    def _add_audio_from_users_audio(self, group_id, track_name):
         self.browser.get(f'https://vk.com/audios-{group_id}')
         time.sleep(1)
 
+        if button_key < 0:
+            raise RuntimeError('vk changed something with add audio in group')
+
         try:
-            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
-            add_btn.click()
-
-            # Click on "choise from my audios"
-            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/div[2]/a')))
-            add_btn.click()
-
-            # Past audio_name in search form
-            search_form = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="ape_edit_playlist_search"]')))
-            search_form.send_keys(track_name)
-
-            # Click on most relevant search result
-            add_btn = WebDriverWait(self.browser, 1).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[3]/div[1]/div[1]')))
-            add_btn.click()
+            self._click_on_add_playlist_or_audio_in_group(button_key=button_key)
+            self._click_on_chose_from_my_audios()
+            self._past_audio_name_in_search_form(track_name)
+            self._click_on_first_result()
 
             # Check for success
             self.browser.refresh()
@@ -480,18 +513,10 @@ class VkAudioBackend:
             else:
                 return False
 
-        except selenium.common.exceptions.ElementClickInterceptedException:
-            print('some error with add audio from user - ElementClickInterceptedException')
-            return self.add_audio_in_group(group_id, track_name)
-
-        except selenium.common.exceptions.TimeoutException:
-            print('some error with add audio from user - TimeoutException')
-            return self.add_audio_in_group(group_id, track_name)
-
-    def _check_browser_auth(self):
-        if self.is_auth is False:
-            self.browser_auth()
-            self.is_auth = True
+        except (exceptions.ElementClickInterceptedException, exceptions.TimeoutException,
+                exceptions.ElementNotInteractableException):
+            print('some error with add audio from search')
+            return self.add_audio_in_group(group_id, track_name, button_key=button_key-1)
 
     def browser_auth(self):
         """
@@ -527,58 +552,6 @@ class VkAudioBackend:
             print('Something wrong with create_group')
             print(resp)
 
-    def add_audio_in_group(self, group_id, track_name):
-        """ Поиск и добавление трека в аудиозаписи паблика """
-        self._check_browser_auth()
-        self.browser.get(f'https://vk.com/audios-{group_id}')
-        time.sleep(1)
-
-        # Click on "add audio" button
-        try:
-            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/h2/ul/button[2]')))
-            add_btn.click()
-            time.sleep(1)
-
-            # Click on "choise from my audios"
-            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[2]/div/div[3]/div[1]/div[2]/a')))
-            add_btn.click()
-            time.sleep(1)
-
-            # Past audio_name in search form
-            search_form = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="ape_edit_playlist_search"]')))
-            search_form.send_keys(track_name)
-            time.sleep(1)
-
-            # Click on most relevant search result
-            add_btn = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
-                (By.XPATH, '//*[@id="box_layer"]/div[3]/div/div[2]/div/div[3]/div[2]/div[1]')))
-            add_btn.click()
-
-            # Check for success
-            self.browser.refresh()
-            time.sleep(1)
-            html = self.browser.page_source
-            if html.lower().find(track_name.lower()):
-                print(f'successfully added "{track_name}" in group audios')
-                return True
-            else:
-                return False
-
-        except selenium.common.exceptions.ElementClickInterceptedException:
-            print('some error with add audio from search - ElementClickInterceptedException')
-            return self._add_audio_from_users_audio(group_id, track_name)
-
-        except selenium.common.exceptions.TimeoutException:
-            print('some error with add audio from search - TimeoutException')
-            return self._add_audio_from_users_audio(group_id, track_name)
-
-        except selenium.common.exceptions.ElementNotInteractableException:
-            print('some error with add audio from search - ElementNotInteractableException')
-            return self._add_audio_from_users_audio(group_id, track_name)
-
     def create_playlists(self, group_id, playlist_name, cover_path=None, count=1):
         """ Создание плейлистов в паблике """
         self._check_browser_auth()
@@ -588,12 +561,7 @@ class VkAudioBackend:
         time.sleep(1)
 
         for n in range(count):
-            if cover_path is None:
-                self._create_playlist_without_cover(group_id, playlist_name)
-                print(f'playlist {n + 1} / {count} created')
-            else:
-                self._create_playlist_with_cover(group_id, playlist_name, cover_path)
-                print(f'playlist {n + 1} / {count} created')
+            self._create_one_playlist(count, cover_path, group_id, n, playlist_name)
 
         playlists_all = self.get_playlists_urls(group_id, playlist_name)
 
@@ -602,28 +570,6 @@ class VkAudioBackend:
             return playlist_new
         else:
             return playlists_all
-
-    def get_playlists_urls(self, group_id, playlist_name):
-        """ Получение ссылок на все плейлисты с указанным названем """
-        self._check_browser_auth()
-        self._playlists_page_scroll(group_id)
-        html = self.browser.page_source
-
-        soup = BeautifulSoup(html, 'lxml')
-        playlist_objects = soup.find_all(class_='audio_item__title')
-
-        playlist_urls = []
-        for playlist in playlist_objects:
-            if playlist.get_text().lower() == playlist_name.lower():
-                link = playlist['href']
-                url = f'https://vk.com{link}'
-                playlist_urls.append(url)
-
-        if playlist_urls:
-            return playlist_urls
-        else:
-            print(f'Group {group_id} have no playlists with name "{playlist_name}"')
-            return None
 
     def get_playlists_listens(self, group_id, playlist_name):
         """ Получение количества прослушиваний со всех плейлитов с заданным названием """
@@ -652,6 +598,27 @@ class VkAudioBackend:
 
         return listens
 
+    def get_playlists_urls(self, group_id, playlist_name):
+        """ Получение ссылок на все плейлисты с указанным названем """
+        self._check_browser_auth()
+        self._playlists_page_scroll(group_id)
+        html = self.browser.page_source
+
+        soup = BeautifulSoup(html, 'lxml')
+        playlist_objects = soup.find_all(class_='audio_item__title')
+        playlist_urls = []
+        for playlist in playlist_objects:
+            if playlist.get_text().lower() == playlist_name.lower():
+                link = playlist['href']
+                url = f'https://vk.com{link}'
+                playlist_urls.append(url)
+
+        if playlist_urls:
+            return playlist_urls
+        else:
+            print(f'Group {group_id} have no playlists with name "{playlist_name}"')
+            return None
+
     def __del__(self):
         try:
             self.browser.close()
@@ -667,14 +634,128 @@ class VkAdsBackend:
         self.session = requests.session()
         self.ad_names = {}
 
-    def _url_for_get_campaigns(self, cabinet_id, client_id):
+    def _ads_stats_unpack(self, ad_names, get_ads, resp):
+        ads_stats = {}
+        for i in resp['response']:
+            if i['stats']:
+                cpm = float(get_ads[i['id']]['cpm']) / 100
+                try:
+                    ads_stats[i['id']] = {'name': ad_names[i['id']],
+                                          'spent': float(i['stats'][0]['spent']),
+                                          'reach': i['stats'][0]['impressions'],
+                                          'cpm': cpm}
+                except KeyError:
+                    ads_stats[i['id']] = {'name': ad_names[i['id']],
+                                          'spent': 0.0,
+                                          'reach': 0.0,
+                                          'cpm': cpm}
+            else:
+                cpm = float(get_ads[i['id']]['cpm']) / 100
+                ads_stats[i['id']] = {'name': ad_names[i['id']],
+                                      'spent': 0,
+                                      'reach': 0,
+                                      'cpm': cpm}
+        return ads_stats
+
+    def _create_ads(self, cabinet_id, campaign_id, client_id, music, posts, retarget, sex):
+        # Цикл для создания объявлений для каждой базы ретаргета
+        ads_and_posts = {}
+        for n, (base_name, base_id) in enumerate(retarget.items()):
+            # С сужением по интересу "музыка"
+            if music is True:
+                data = self._data_for_ads_with_music(base_id, base_name, campaign_id, posts[n], sex)
+            else:
+                # Без сужения по интересу
+                data = self._data_for_ads_without_music(base_id, base_name, campaign_id, posts[n], sex)
+
+            data = json.dumps(data)
+            url = self._url_for_create_ads(cabinet_id, client_id, data)
+            resp = self.session.get(url).json()
+            try:
+                ad_id = resp['response'][0]['id']
+                ads_and_posts[ad_id] = posts[n]
+                self.ad_names[ad_id] = base_name
+                print(f'ad {n + 1} / {len(retarget)} created')
+            except KeyError:
+                print('Some error with create_ads')
+                print(resp)
+
+            time.sleep(3)
+        return ads_and_posts
+
+    def _data_for_ads_without_music(self, base_id, base_name, campaign_id, post, sex):
+        data = [{
+            'campaign_id': campaign_id,             # Айди кампании
+            'ad_format': 9,                         # Формат объявления, 9 - посты
+            'autobidding': 0,                       # Автоуправление ценой
+            'cost_type': 1,                         # Способ оплаты, 1 - СРМ
+            'cpm': 30.,                             # CPM
+            'impressions_limit': 1,                 # Показы на одного человека
+            'ad_platform': 'mobile',                # Площадки показа
+            'all_limit': 100,                       # Лимит по бюджету
+            'category1_id': 51,                     # Тематика объявления, 51 - музыка
+            'age_restriction': 1,                   # Возрастной дисклеймер, 1 - 0+
+            'status': 1,                            # Статус объявления, 1 - запущено
+            'name': base_name,                      # Название объявления
+            'link_url': post,                       # Ссылка на дарк-пост
+            'country': 0,                           # Страна, 0 - не задана
+            'user_devices': 1001,                   # Устройства, 1001 - смартфоны
+            'retargeting_groups': base_id,          # База ретаргета
+            'sex': sex  # Пол, 0 - любой, 1 - женский, 2 - мужской
+        }]
+        return data
+
+    def _data_for_ads_with_music(self, base_id, base_name, campaign_id, post, sex):
+        data = [{
+            'campaign_id': campaign_id,             # Айди кампании
+            'ad_format': 9,                         # Формат объявления, 9 - посты
+            'autobidding': 0,                       # Автоуправление ценой
+            'cost_type': 1,                         # Способ оплаты, 1 - СРМ
+            'cpm': 30.,                             # CPM
+            'impressions_limit': 1,                 # Показы на одного человека
+            'ad_platform': 'mobile',                # Площадки показа
+            'all_limit': 100,                       # Лимит по бюджету
+            'category1_id': 51,                     # Тематика объявления, 51 - музыка
+            'age_restriction': 1,                   # Возрастной дисклеймер, 1 - 0+
+            'status': 1,                            # Статус объявления, 1 - запущено
+            'name': base_name,                      # Название объявления
+            'link_url': post,                       # Ссылка на дарк-пост
+            'country': 0,                           # Страна, 0 - не задана
+            'interest_categories': 10010,           # Категории интересов, 10010 - музыка
+            'user_devices': 1001,                   # Устройства, 1001 - смартфоны
+            'retargeting_groups': base_id,          # База ретаргета
+            'sex': sex                              # Пол, 0 - любой, 1 - женский, 2 - мужской
+        }]
+        return data
+
+    def _data_for_update_cpm(self, cabinet_id, cpm_dict):
+        data_list = []
+        for ad_id, cpm in cpm_dict.items():
+            if len(data_list) < 4:
+                data = {'ad_id': ad_id, 'cpm': cpm}
+                data_list.append(data)
+            else:
+                data = {'ad_id': ad_id, 'cpm': cpm}
+                data_list.append(data)
+                data = json.dumps(data_list)
+                url = f'https://api.vk.com/method/ads.updateAds?account_id={cabinet_id}&' \
+                      f'data={data}&' \
+                      f'access_token={self.token}&v=5.103'
+                resp = self.session.get(url).json()
+                data_list = []
+                time.sleep(1)
+        return data_list
+
+    def _url_for_get_campaigns(self, cabinet_id, client_id, include_deleted):
         # Если получаем из личного кабинета
         if client_id is None:
             url = f'https://api.vk.com/method/ads.getCampaigns?account_id={cabinet_id}&' \
+                  f'include_deleted={include_deleted}&' \
                   f'access_token={self.token}&v=5.103'
         # Если получаем из кабинета агентства
         else:
             url = f'https://api.vk.com/method/ads.getCampaigns?account_id={cabinet_id}&' \
+                  f'include_deleted={include_deleted}&' \
                   f'client_id={client_id}&' \
                   f'access_token={self.token}&v=5.103'
         return url
@@ -751,62 +832,18 @@ class VkAdsBackend:
                   f'access_token={self.token}&v=5.103'
         return url
 
-    def _data_for_ads_without_music(self, base_id, base_name, campaign_id, post, sex):
-        data = [{
-            'campaign_id': campaign_id,             # Айди кампании
-            'ad_format': 9,                         # Формат объявления, 9 - посты
-            'autobidding': 0,                       # Автоуправление ценой
-            'cost_type': 1,                         # Способ оплаты, 1 - СРМ
-            'cpm': 30.,                             # CPM
-            'impressions_limit': 1,                 # Показы на одного человека
-            'ad_platform': 'mobile',                # Площадки показа
-            'all_limit': 100,                       # Лимит по бюджету
-            'category1_id': 51,                     # Тематика объявления, 51 - музыка
-            'age_restriction': 1,                   # Возрастной дисклеймер, 1 - 0+
-            'status': 1,                            # Статус объявления, 1 - запущено
-            'name': base_name,                      # Название объявления
-            'link_url': post,                       # Ссылка на дарк-пост
-            'country': 0,                           # Страна, 0 - не задана
-            'user_devices': 1001,                   # Устройства, 1001 - смартфоны
-            'retargeting_groups': base_id,          # База ретаргета
-            'sex': sex  # Пол, 0 - любой, 1 - женский, 2 - мужской
-        }]
-        return data
-
-    def _data_for_ads_with_music(self, base_id, base_name, campaign_id, post, sex):
-        data = [{
-            'campaign_id': campaign_id,             # Айди кампании
-            'ad_format': 9,                         # Формат объявления, 9 - посты
-            'autobidding': 0,                       # Автоуправление ценой
-            'cost_type': 1,                         # Способ оплаты, 1 - СРМ
-            'cpm': 30.,                             # CPM
-            'impressions_limit': 1,                 # Показы на одного человека
-            'ad_platform': 'mobile',                # Площадки показа
-            'all_limit': 100,                       # Лимит по бюджету
-            'category1_id': 51,                     # Тематика объявления, 51 - музыка
-            'age_restriction': 1,                   # Возрастной дисклеймер, 1 - 0+
-            'status': 1,                            # Статус объявления, 1 - запущено
-            'name': base_name,                      # Название объявления
-            'link_url': post,                       # Ссылка на дарк-пост
-            'country': 0,                           # Страна, 0 - не задана
-            'interest_categories': 10010,           # Категории интересов, 10010 - музыка
-            'user_devices': 1001,                   # Устройства, 1001 - смартфоны
-            'retargeting_groups': base_id,          # База ретаргета
-            'sex': sex                              # Пол, 0 - любой, 1 - женский, 2 - мужской
-        }]
-        return data
-
-    def get_campaigns(self, cabinet_id, client_id=None):
+    def get_campaigns(self, cabinet_id, client_id=None, include_deleted=True):
         """
         Получение кампаний из рекламног кабинета
 
         :param cabinet_id: int - айди рекламного кабинета (личного или агентского)
         :param client_id: int - айди клиента, если передеается cabinet_id агентства
+        :param include_deleted: bool - включая удаленные или нет
 
         :return: dict - {campaign_name: campaign_id}
 
         """
-        url = self._url_for_get_campaigns(cabinet_id, client_id)
+        url = self._url_for_get_campaigns(cabinet_id, client_id, include_deleted=include_deleted)
         resp = self.session.get(url).json()
         try:
             campaigns = {}
@@ -842,7 +879,7 @@ class VkAdsBackend:
             print('Some error with get_retarget:')
             print(resp)
 
-    def get_ads(self, cabinet_id, campaign_id, include_deleted=False, client_id=None):
+    def get_ads(self, cabinet_id, campaign_id, include_deleted=True, client_id=None):
         """
         Получение айди объявлений и их названий из рекламной кампании
 
@@ -934,26 +971,7 @@ class VkAdsBackend:
 
         get_ads = self.get_ads(cabinet_id, campaign_id, client_id=client_id, include_deleted=True)
 
-        ads_stats = {}
-        for i in resp['response']:
-            if i['stats']:
-                cpm = float(get_ads[i['id']]['cpm']) / 100
-                try:
-                    ads_stats[i['id']] = {'name': ad_names[i['id']],
-                                          'spent': float(i['stats'][0]['spent']),
-                                          'reach': i['stats'][0]['impressions'],
-                                          'cpm': cpm}
-                except KeyError:
-                    ads_stats[i['id']] = {'name': ad_names[i['id']],
-                                          'spent': 0.0,
-                                          'reach': 0.0,
-                                          'cpm': cpm}
-            else:
-                cpm = float(get_ads[i['id']]['cpm']) / 100
-                ads_stats[i['id']] = {'name': ad_names[i['id']],
-                                      'spent': 0,
-                                      'reach': 0,
-                                      'cpm': cpm}
+        ads_stats = self._ads_stats_unpack(ad_names, get_ads, resp)
 
         return ads_stats
 
@@ -1028,8 +1046,6 @@ class VkAdsBackend:
         :return:                int - campaign_id
 
         """
-
-
         url = self._url_for_create_campaign(cabinet_id, client_id, campaign_name, money_limit)
         resp = self.session.get(url).json()
         print(resp)
@@ -1061,29 +1077,7 @@ class VkAdsBackend:
         else:
             sex = 0
 
-        # Цикл для создания объявлений для каждой базы ретаргета
-        ads_and_posts = {}
-        for n, (base_name, base_id) in enumerate(retarget.items()):
-            # С сужением по интересу "музыка"
-            if music is True:
-                data = self._data_for_ads_with_music(base_id, base_name, campaign_id, posts[n], sex)
-            else:
-                # Без сужения по интересу
-                data = self._data_for_ads_without_music(base_id, base_name, campaign_id, posts[n], sex)
-
-            data = json.dumps(data)
-            url = self._url_for_create_ads(cabinet_id, client_id, data)
-            resp = self.session.get(url).json()
-            try:
-                ad_id = resp['response'][0]['id']
-                ads_and_posts[ad_id] = posts[n]
-                self.ad_names[ad_id] = base_name
-                print(f'ad {n + 1} / {len(retarget)} created')
-            except KeyError:
-                print('Some error with create_ads')
-                print(resp)
-
-            time.sleep(3)
+        ads_and_posts = self._create_ads(cabinet_id, campaign_id, client_id, music, posts, retarget, sex)
 
         return ads_and_posts
 
@@ -1191,21 +1185,8 @@ class VkAdsBackend:
         :param cpm_dict:        dict - {ad_id: cpm}, cpm - float в рублях с копейками после точки
 
         """
-        data_list = []
-        for ad_id, cpm in cpm_dict.items():
-            if len(data_list) < 4:
-                data = {'ad_id': ad_id, 'cpm': cpm}
-                data_list.append(data)
-            else:
-                data = {'ad_id': ad_id, 'cpm': cpm}
-                data_list.append(data)
-                data = json.dumps(data_list)
-                url = f'https://api.vk.com/method/ads.updateAds?account_id={cabinet_id}&' \
-                      f'data={data}&' \
-                      f'access_token={self.token}&v=5.103'
-                resp = self.session.get(url).json()
-                data_list = []
-                time.sleep(1)
+        data_list = self._data_for_update_cpm(cabinet_id, cpm_dict)
+
         if data_list:
             data = json.dumps(data_list)
             url = f'https://api.vk.com/method/ads.updateAds?account_id={cabinet_id}&' \
@@ -1242,8 +1223,21 @@ class Bagosi:
         browser = webdriver.Chrome('C:\chromedriver\chromedriver.exe', options=chromeOptions)
         return browser
 
-    def get_savers_count(self, url):
+    def _bagosi_auth(self):
+        # Логинимся в багосах и переходим на нужную страницу
+        self.browser.get('https://bago.si/login?n=vk')
+        time.sleep(1)
+        self.browser.get('https://bago.si/audio_savers')
 
+    def _past_public_url_in_bagosi(self, url):
+        # Вставляем ссылку
+        linkform = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id')))
+        button = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="submit"]')))
+        linkform.send_keys(url)
+        button.click()
+        time.sleep(3)
+
+    def _vk_auth(self):
         try:
             # Логинимся в ВК
             self.browser.get('http://www.vk.com')
@@ -1258,20 +1252,14 @@ class Bagosi:
             enter.click()
             time.sleep(1)
             print('vk.com is logged\n')
-        except selenium.common.exceptions.NoSuchElementException:
+        except exceptions.NoSuchElementException:
             pass
 
-        # Логинимся в багосах и переходим на нужную страницу
-        self.browser.get('https://bago.si/login?n=vk')
-        time.sleep(1)
-        self.browser.get('https://bago.si/audio_savers')
+    def get_savers_count(self, url):
 
-        # Вставляем ссылку
-        linkform = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id')))
-        button = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="submit"]')))
-        linkform.send_keys(url)
-        button.click()
-        time.sleep(3)
+        self._vk_auth()
+        self._bagosi_auth()
+        self._past_public_url_in_bagosi(url)
 
         # Получаем список аудио из url
         page = self.browser.page_source
