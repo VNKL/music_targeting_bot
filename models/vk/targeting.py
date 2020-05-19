@@ -46,10 +46,13 @@ def _campaign_average_calculator(camp_stat, campaign, full_ads_stat, savers):
     spent = camp_stat[campaign['campaign_id']]['spent']
     reach = 0
     listens = 0
+    segments = 0
 
     for _, stats in full_ads_stat.items():
         listens += stats['listens']
         reach += stats['reach']
+        if stats['listen_rate'] >= 3:
+            segments += 1
 
     listens_rate, save_rate = _calculate_listens_rate_and_save_rate(listens, reach, savers)
     listens_cost = _calculate_listens_cost(listens, spent)
@@ -59,7 +62,7 @@ def _campaign_average_calculator(camp_stat, campaign, full_ads_stat, savers):
         savers = '[ошибка, вк заболел]'
 
     campaign_average = {'reach': reach, 'spent': spent, 'listens': listens, 'saves': savers,
-                        'listen_rate': listens_rate, 'listen_cost': listens_cost,
+                        'listen_rate': listens_rate, 'segments': segments, 'listen_cost': listens_cost,
                         'save_rate': save_rate, 'save_cost': save_cost}
 
     return campaign_average
@@ -192,7 +195,13 @@ def get_campaign_average(campaign):
     for ad_id, ad_stat in ads_stat.items():
         stat = ad_stat.copy()
         playlist_url = ad_playlists[ad_id]
-        stat['listens'] = int(listens[playlist_url])
+        ad_listens = int(listens[playlist_url])
+        stat['listens'] = ad_listens
+        reach = stat['reach']
+        if reach != 0:
+            stat['listen_rate'] = round((ad_listens / reach * 100), 2)
+        else:
+            stat['listen_rate'] = 0
         full_ads_stat[ad_id] = stat
 
     campaign_average = _campaign_average_calculator(camp_stat, campaign, full_ads_stat, savers)
@@ -283,3 +292,15 @@ def start_campaign_from_db(update, campaign, size=500000):
                                                   campaign_budget, campaign_id, citation, client_id, client_name,
                                                   cover_path, fake_group_id, music_interest_filter, track_name, user)
     add_campaign_details_to_db(update, detailed_campaign)
+
+
+def _len_segments_with_rate_over_3(stat):
+    segments_over_3 = 0
+    for _, v in stat.items():
+        listens = v['listens']
+        reach = v['reach']
+        if reach != 0:
+            rate = round((listens / reach * 100), 2)
+            if rate >= 3:
+                segments_over_3 += 1
+    return segments_over_3
