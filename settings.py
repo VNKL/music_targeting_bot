@@ -23,10 +23,10 @@ VK_SUPPORT_ACCOUNT = {'login': vk_support_login,
                       'user_id': vk_support_user_id}
 
 
-TELEGRAM_TOKEN = '1122634627:AAFRWfpTDbizg05s1S5GWs2JF3SznIFVQsE'
+TELEGRAM_TOKEN = '1138591468:AAGXszS7z2oe9fGp8IaoqrjoCyybJk4g4S8'
 
 
-prx = '172.96.138.248:49873:DJhQuD0qDD:wxBT69FYfZ'
+prx = '91.188.230.167:60873:suxh1oYYPS:JKAYsLFRo8'
 prx = prx.split(':')
 PROXY = {'proxy_url': f'socks5://{prx[0]}:{prx[1]}',
          'urllib3_proxy_kwargs': {'username': prx[2], 'password': prx[3]}}
