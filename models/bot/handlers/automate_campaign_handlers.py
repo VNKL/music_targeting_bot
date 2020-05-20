@@ -142,7 +142,7 @@ def _ac_get_cpm_update_interval(update, context):
             cpm_update_interval = int(text) * 60
             start_campaign_settings[user['user_id']].update({'cpm_update_interval': cpm_update_interval})
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text='Когда надо запустить основной продвиг?',
+                                     text='Когда надо запустить автоматизацию?',
                                      reply_markup=ReplyKeyboardMarkup([['Сейчас',
                                                                         'Завтра']],
                                                                       one_time_keyboard=True))
@@ -162,11 +162,32 @@ def _ac_start_day(update, context):
         user = DB.users.find_one({'user_id': update.effective_user.id})
         text = update.message.text
         if text == 'Сейчас':
-            start_campaign_settings[user['user_id']].update({'start_day': 'today'})
+            start_campaign_settings[user['user_id']].update({'start_day': 'now'})
         elif text == 'Завтра':
             start_campaign_settings[user['user_id']].update({'start_day': 'tomorrow'})
         else:
-            start_campaign_settings[user['user_id']].update({'start_day': 'today'})
+            start_campaign_settings[user['user_id']].update({'start_day': 'now'})
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text='Когда надо остановить кампанию?',
+                                 reply_markup=ReplyKeyboardMarkup([['На следующий день'],
+                                                                   ['Никогда']],
+                                                                  one_time_keyboard=True))
+        logging.info(f'AC - {update.effective_user.username} choosing start or not')
+        return 'get_end_day'
+
+
+def _ac_end_day(update, context):
+    logging.info(f'AC - {update.effective_user.username} trying to set end day')
+
+    if _is_user_known(context, update):
+        user = DB.users.find_one({'user_id': update.effective_user.id})
+        text = update.message.text
+        if text == 'Никогда':
+            start_campaign_settings[user['user_id']].update({'end_day': None})
+        elif text == 'На следующий день':
+            start_campaign_settings[user['user_id']].update({'end_day': 'next_day'})
+        else:
+            start_campaign_settings[user['user_id']].update({'end_day': None})
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text=_ac_preparation_summary(update),
                                  parse_mode=ParseMode.HTML,
@@ -260,6 +281,8 @@ automate_campaign_handler = ConversationHandler(
                                     MessageHandler(Filters.text, _ac_get_cpm_update_interval)],
         'get_start_day': [CommandHandler('reload', reload),
                           MessageHandler(Filters.text, _ac_start_day)],
+        'get_end_day': [CommandHandler('reload', reload),
+                        MessageHandler(Filters.text, _ac_end_day)],
         'confirm_automate': [CommandHandler('reload', reload),
                              MessageHandler(Filters.text, _ac_confirm_automate)]
     },

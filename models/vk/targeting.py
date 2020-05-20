@@ -75,14 +75,24 @@ def _cpm_updating(ad_ids, calculator, campaign, cpm_update_interval, end_time, v
     vk.start_ads(cabinet_id=campaign['cabinet_id'], ad_ids=ad_ids)
     time.sleep(3)
 
-    time_now = datetime.datetime.now()
-    while time_now < end_time:
-        ads_stat = get_campaign_details(campaign)
-        cpm_dict, stop_ads = calculator.updates_for_target_cost(ads_stat)
-        vk.update_cpm(cabinet_id=campaign['cabinet_id'], cpm_dict=cpm_dict)
-        vk.stop_ads(cabinet_id=campaign['cabinet_id'], ad_ids=stop_ads)
-        time.sleep(cpm_update_interval)
+    if end_time is not None:
         time_now = datetime.datetime.now()
+        while time_now < end_time:
+            ads_stat = get_campaign_details(campaign)
+            cpm_dict, stop_ads = calculator.updates_for_target_cost(ads_stat)
+            vk.update_cpm(cabinet_id=campaign['cabinet_id'], cpm_dict=cpm_dict)
+            vk.stop_ads(cabinet_id=campaign['cabinet_id'], ad_ids=stop_ads)
+            time.sleep(cpm_update_interval)
+            time_now = datetime.datetime.now()
+
+    else:
+        while True:
+            ads_stat = get_campaign_details(campaign)
+            cpm_dict, stop_ads = calculator.updates_for_target_cost(ads_stat)
+            vk.update_cpm(cabinet_id=campaign['cabinet_id'], cpm_dict=cpm_dict)
+            vk.stop_ads(cabinet_id=campaign['cabinet_id'], ad_ids=stop_ads)
+            time.sleep(cpm_update_interval)
+
 
 
 def _create_dark_posts(artist_group_id, artist_name, citation, playlists, track_name, vk):
@@ -155,14 +165,17 @@ def _wait_campaign_start(start_time):
 
 
 def automate_started_campaign(update, campaign, target_cost=1., stop_cost=1.5, cpm_step=10., cpm_limit=120.,
-                              cpm_update_interval=1200, start_day='today'):
+                              cpm_update_interval=1200, start_day='now', end_day=None):
     user = DB.users.find_one({'user_id': update.effective_user.id})
     vk = VkBackend(ads_token=user['vk_token'], support_account=VK_SUPPORT_ACCOUNT, headless=True)
     calculator = CPMCalculator(target_cost=target_cost, stop_cost=stop_cost, cpm_step=cpm_step, cpm_limit=cpm_limit)
     ad_ids = [x['ad_id'] for _, x in campaign['ads'].items()]
 
     # Установка параметров остановки основной кампании
-    end_time = _get_campaign_end_time(start_day)
+    if end_day is None:
+        end_time = None
+    else:
+        end_time = _get_campaign_end_time(start_day)
 
     # Обновление СРМ
     campaign_copy = campaign.copy()

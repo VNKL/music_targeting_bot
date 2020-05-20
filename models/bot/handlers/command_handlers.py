@@ -144,7 +144,6 @@ def get_campaign_statuses(update, context):
                                      parse_mode=ParseMode.HTML,
                                      reply_markup=ReplyKeyboardMarkup(MAIN_MANAGER_KEYBOARD))
 
-
         elif user['permissions'] == 'spectator':
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=text,
