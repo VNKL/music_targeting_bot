@@ -94,7 +94,6 @@ def _cpm_updating(ad_ids, calculator, campaign, cpm_update_interval, end_time, v
             time.sleep(cpm_update_interval)
 
 
-
 def _create_dark_posts(artist_group_id, artist_name, citation, playlists, track_name, vk):
     if citation is not None:
         text = f'ПРЕМЕЬРА\n \n' \

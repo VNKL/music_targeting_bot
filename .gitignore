@@ -1,5 +1,5 @@
 /settings.py
-/probe.py
+/stats_exporter.py
 /venv/
 /models/bot/chromedriver/coockies_79228820339.pkl
 /models/bot/chromedriver/coockies_smm4@black-star.ru.pkl
@@ -8,3 +8,8 @@
 /models/bot/bot.log
 /bot.log
 /backup_users_18_05_2020.json
+/credentials.json
+/token.pickle
+/statsfromtargetingbot-129e71fbec21.json
+/quickstart.py
+/exported_stats.csv

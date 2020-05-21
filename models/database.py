@@ -203,4 +203,29 @@ def get_campaigns_from_db(update):
     return campaigns
 
 
+def get_campaigns_from_db_to_export_stat(username):
+    user = DB.users.find_one({'user_name': username})
+
+    if user['permissions'] == 'spectator':
+        user = DB.users.find_one({'user_name': user['manager']})
+
+    campaigns = {}
+
+    user_cabinets = user['user_cabinets']
+    for cab_name, cab_details in user_cabinets.items():
+        try:
+            campaigns.update(cab_details['campaigns'])
+        except KeyError:
+            pass
+
+    agency_cabinets = user['agency_cabinets']
+    for ag_name, ag_details in agency_cabinets.items():
+        for cl_name, cl_details in ag_details['agency_clients'].items():
+            try:
+                campaigns.update(cl_details['campaigns'])
+            except KeyError:
+                pass
+
+    return campaigns
+
 

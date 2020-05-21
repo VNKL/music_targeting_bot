@@ -112,7 +112,8 @@ def _ccs_select_status(update, context):
                                      text='Выбери статус, который поставим👇🏻',
                                      reply_markup=ReplyKeyboardMarkup([['started'],
                                                                        ['finished'],
-                                                                       ['created']], one_time_keyboard=True))
+                                                                       ['created'],
+                                                                       ['archived']], one_time_keyboard=True))
             global selected_campaign
             selected_campaign[text] = campaigns[text]
             return 'change_status'
@@ -127,7 +128,7 @@ def _ccs_change_status(update, context):
 
     if _is_user_known(context, update):
         text = update.message.text
-        if text == 'started' or text == 'finished' or text == 'created':
+        if text == 'started' or text == 'finished' or text == 'created' or text == 'archived':
             new_status = text
             updated_campaign = {}
             for c_name, c_settings in selected_campaign.items():

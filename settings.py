@@ -35,3 +35,8 @@ PROXY = {'proxy_url': f'socks5://{prx[0]}:{prx[1]}',
 db = pymongo.MongoClient("mongodb+srv://MusicTargetingBot:BS0880BSa@"
                          "musictargetingbot-6n12v.mongodb.net/music_targeting_bot?retryWrites=true&w=majority")
 DB = db.music_targeting_bot
+
+
+GOOGLE_SERVICE_ACCOUNT = 'service-account-1@statsfromtargetingbot.iam.gserviceaccount.com'
+GOOGLE_CREDENTIALS_FILE = 'files/statsfromtargetingbot-129e71fbec21.json'
+GOOGLE_SPREADSHHET_ID = '18DT8QRw5i5LUKbgBtXAEtUaYm1EQgJuERSZERWfIBsQ'
