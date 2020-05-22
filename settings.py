@@ -15,7 +15,7 @@ MAIN_SPECTATOR_KEYBOARD = [['Получить статусы кампаний'],
 
 vk_support_login = 'smm4@black-star.ru'
 vk_support_password = 'BS0880BSaBS0880BSa'
-vk_support_token = '2c1b8b928d83d6407f9d81671a26818edc4ab7c950159a3e644fc8fd792fbc1bb44625cc732a61b0a665c'
+vk_support_token = '2d513328817a1acff1ed9258ad4f71b60db3cf11c8ced75fa21413bbb02abf4c05b29ee5ba888ad66543e'
 vk_support_user_id = 451369253
 VK_SUPPORT_ACCOUNT = {'login': vk_support_login,
                       'password': vk_support_password,
