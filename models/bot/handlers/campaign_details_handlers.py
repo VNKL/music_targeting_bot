@@ -106,10 +106,9 @@ def _cd_get_sort_type(update, context):
         if text in camp_names:
             global camp_name
             camp_name = text
-            keyboard = [['Сортировка по названию базы'],
-                        ['Сортировка по кликам на плей'],
-                        ['Сортировка по стоимости клика'],
-                        ['Сортировка по конверсии в клики']]
+            keyboard = [['По кликам на плей', 'По стоимости клика', 'По конверсии в клики'],
+                        ['По добавлениям плейлистов', 'По стоимости добавления плейлиста'],
+                        ['По конверсии в добавление плейлиста', 'По названию базы']]
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text='Выбери тип сортировки👇🏻',
                                      reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True))
@@ -132,8 +131,10 @@ def _cd_get_camp_details(update, context):
         global camps_for_selected_cab
         campaigns = camps_for_selected_cab
 
-        sort_types = ['Сортировка по названию базы', 'Сортировка по кликам на плей',
-                      'Сортировка по стоимости клика', 'Сортировка по конверсии в клики']
+        sort_types = ['По названию базы', 'По кликам на плей',
+                      'По стоимости клика', 'По конверсии в клики',
+                      'По добавлениям плейлистов', 'По стоимости добавления плейлиста',
+                      'По конверсии в добавление плейлиста']
 
         if text in sort_types:
             logging.info(f'CD - {update.effective_user.username} selected sort type')
@@ -172,20 +173,27 @@ def _answer_for_campaign_details(stat, key):
 
     stat_list = _stat_to_list(stat)
 
-    if key == 'Сортировка по названию базы':
+    if key == 'По названию базы':
         stat_list.sort(key=_sort_by_name, reverse=False)
-    elif key == 'Сортировка по кликам на плей':
+    elif key == 'По кликам на плей':
         stat_list.sort(key=_sort_by_listens, reverse=True)
-    elif key == 'Сортировка по стоимости клика':
-        stat_list.sort(key=_sort_by_cost, reverse=False)
-    elif key == 'Сортировка по конверсии в клики':
-        stat_list.sort(key=_sort_by_rate, reverse=True)
+    elif key == 'По стоимости клика':
+        stat_list.sort(key=_sort_by_listen_cost, reverse=False)
+    elif key == 'По конверсии в клики':
+        stat_list.sort(key=_sort_by_listen_rate, reverse=True)
+    elif key == 'По добавлениям плейлистов':
+        stat_list.sort(key=_sort_by_follows, reverse=True)
+    elif key == 'По стоимости добавления плейлиста':
+        stat_list.sort(key=_sort_by_follow_cost, reverse=True)
+    elif key == 'По конверсии в добавление плейлиста':
+        stat_list.sort(key=_sort_by_follow_rate, reverse=True)
     else:
         stat_list.sort(key=_sort_by_listens, reverse=True)
 
     text = ''
     for segment in stat_list:
-        text += f'<b>{segment[0]}</b>: {segment[1]} кликов по {segment[2]} руб, конверсия {segment[3]}%\n'
+        text += f'<b>{segment[0]}</b>: {segment[1]} кликов по {segment[2]} руб, конверсия {segment[3]}%, \n' \
+                f'плейлист: {segment[4]} добавлений по {segment[5]} руб, конверсия {segment[6]}%\n'
 
     return _message_to_batches(text)
 
@@ -210,18 +218,28 @@ def _message_to_batches(text):
 def _stat_to_list(stat):
     stat_list = []
     for _, v in stat.items():
-        listens = v['listens']
         reach = v['reach']
+        if reach == 0:
+            continue
+        listens = v['listens']
+        follows = v['followers']
         spent = v['spent']
         if listens != 0:
-            cost = round((spent / listens), 2)
+            listen_cost = round((spent / listens), 2)
         else:
-            cost = 0
+            listen_cost = 0
+        if follows != 0:
+            follow_cost = round((spent / follows), 2)
+        else:
+            follow_cost = 0
+
         if reach != 0:
-            rate = round((listens / reach * 100), 2)
+            listen_rate = round((listens / reach * 100), 2)
+            follow_rate = round((follows / reach * 100), 2)
         else:
-            rate = 0
-        stat_list.append([v['name'], listens, cost, rate])
+            listen_rate = 0
+            follow_rate = 0
+        stat_list.append([v['name'], listens, listen_cost, listen_rate, follows, follow_cost, follow_rate])
     return stat_list
 
 
@@ -233,12 +251,24 @@ def _sort_by_listens(x):
     return x[1]
 
 
-def _sort_by_cost(x):
+def _sort_by_listen_cost(x):
     return x[2]
 
 
-def _sort_by_rate(x):
+def _sort_by_listen_rate(x):
     return x[3]
+
+
+def _sort_by_follows(x):
+    return x[4]
+
+
+def _sort_by_follow_cost(x):
+    return x[5]
+
+
+def _sort_by_follow_rate(x):
+    return x[6]
 
 
 def _cd_failback(update, context):

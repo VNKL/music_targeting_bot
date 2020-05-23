@@ -9,25 +9,32 @@ from models.vk.tools import CPMCalculator
 from settings import VK_SUPPORT_ACCOUNT
 
 
-def _calculate_listens_cost(listens, spent):
+def _calculate_listen_and_follow_cost(listens, followers, spent):
     if listens != 0:
         listens_cost = f'{round((spent / listens), 2)} руб.'
     else:
         listens_cost = None
-    return listens_cost
+    if followers != 0:
+        follow_cost = f'{round((spent / followers), 2)} руб.'
+    else:
+        follow_cost = None
+
+    return listens_cost, follow_cost
 
 
-def _calculate_listens_rate_and_save_rate(listens, reach, savers):
+def _calculate_listens_rate_and_save_rate(listens, followers, reach, savers):
     if reach != 0:
         listens_rate = f'{round((listens / reach * 100), 2)} %'
+        follow_rate = f'{round((followers / reach * 100), 2)} %'
         if isinstance(savers, int):
             save_rate = f'{round((savers / reach * 100), 2)} %'
         else:
             save_rate = '[ошибка, вк заболел]'
     else:
         listens_rate = None
+        follow_rate = None
         save_rate = None
-    return listens_rate, save_rate
+    return listens_rate, follow_rate, save_rate
 
 
 def _calculate_save_cost(savers, spent):
@@ -46,24 +53,27 @@ def _campaign_average_calculator(camp_stat, campaign, full_ads_stat, savers):
     spent = camp_stat[campaign['campaign_id']]['spent']
     reach = 0
     listens = 0
+    followers = 0
     segments = 0
 
     for _, stats in full_ads_stat.items():
         listens += stats['listens']
+        followers += stats['followers']
         reach += stats['reach']
         if stats['listen_rate'] >= 3:
             segments += 1
 
-    listens_rate, save_rate = _calculate_listens_rate_and_save_rate(listens, reach, savers)
-    listens_cost = _calculate_listens_cost(listens, spent)
+    listens_rate, follow_rate, save_rate = _calculate_listens_rate_and_save_rate(listens, followers, reach, savers)
+    listens_cost, follow_cost = _calculate_listen_and_follow_cost(listens, followers, spent)
     save_cost = _calculate_save_cost(savers, spent)
 
     if savers is None:
         savers = '[ошибка, вк заболел]'
 
-    campaign_average = {'reach': reach, 'spent': spent, 'listens': listens, 'saves': savers,
-                        'listen_rate': listens_rate, 'segments': segments, 'listen_cost': listens_cost,
-                        'save_rate': save_rate, 'save_cost': save_cost}
+    campaign_average = {'reach': reach, 'spent': spent, 'listens': listens, 'saves': savers, 'followers': followers,
+                        'listen_rate': listens_rate, 'save_rate': save_rate, 'follow_rate': follow_rate,
+                        'listen_cost': listens_cost, 'save_cost': save_cost, 'follow_cost': follow_cost,
+                        'segments': segments, }
 
     return campaign_average
 
@@ -156,6 +166,18 @@ def _get_campaign_end_time(start_day):
     return end_time
 
 
+def _len_segments_with_rate_over_3(stat):
+    segments_over_3 = 0
+    for _, v in stat.items():
+        listens = v['listens']
+        reach = v['reach']
+        if reach != 0:
+            rate = round((listens / reach * 100), 2)
+            if rate >= 3:
+                segments_over_3 += 1
+    return segments_over_3
+
+
 def _wait_campaign_start(start_time):
     time_now = datetime.datetime.now()
     while time_now < start_time:
@@ -199,7 +221,7 @@ def get_campaign_average(campaign):
 
     ads_stat = vk.get_ads_stat(cabinet_id=campaign['cabinet_id'], client_id=campaign['client_id'],
                                campaign_id=campaign['campaign_id'], ad_ids=ad_ids, ad_names=ad_names)
-    listens = vk.get_playlist_listens(group_id=campaign['fake_group_id'], playlist_name=campaign['track_name'])
+    pl_stats = vk.get_playlist_stats(group_id=campaign['fake_group_id'])
     savers = vk.get_audio_savers(group_id=campaign['fake_group_id'])
     camp_stat = vk.get_campaign_stat(cabinet_id=campaign['cabinet_id'], campaign_id=campaign['campaign_id'])
 
@@ -207,13 +229,17 @@ def get_campaign_average(campaign):
     for ad_id, ad_stat in ads_stat.items():
         stat = ad_stat.copy()
         playlist_url = ad_playlists[ad_id]
-        ad_listens = int(listens[playlist_url])
+        ad_listens = int(pl_stats[playlist_url]['listens'])
+        ad_follows = int(pl_stats[playlist_url]['followers'])
         stat['listens'] = ad_listens
+        stat['followers'] = ad_follows
         reach = stat['reach']
         if reach != 0:
             stat['listen_rate'] = round((ad_listens / reach * 100), 2)
+            stat['follow_rate'] = round((ad_follows / reach * 100), 2)
         else:
             stat['listen_rate'] = 0
+            stat['follow_rate'] = 0
         full_ads_stat[ad_id] = stat
 
     campaign_average = _campaign_average_calculator(camp_stat, campaign, full_ads_stat, savers)
@@ -230,13 +256,14 @@ def get_campaign_details(campaign):
 
     ads_stat = vk.get_ads_stat(cabinet_id=campaign['cabinet_id'], client_id=campaign['client_id'],
                                campaign_id=campaign['campaign_id'], ad_ids=ad_ids, ad_names=ad_names)
-    listens = vk.get_playlist_listens(group_id=campaign['fake_group_id'], playlist_name=campaign['track_name'])
+    pl_stats = vk.get_playlist_stats(group_id=campaign['fake_group_id'])
 
     full_ads_stat = {}
     for ad_id, ad_stat in ads_stat.items():
         stat = ad_stat.copy()
         playlist_url = ad_playlists[ad_id]
-        stat['listens'] = int(listens[playlist_url])
+        stat['listens'] = int(pl_stats[playlist_url]['listens'])
+        stat['followers'] = int(pl_stats[playlist_url]['followers'])
         full_ads_stat[ad_id] = stat
 
     return full_ads_stat
@@ -279,8 +306,7 @@ def start_campaign_from_db(update, campaign, size=500000):
     retarget = vk.get_retarget(cabinet_id=cabinet_id, client_id=client_id, size=size)
 
     # Создает плейлисты [playlist_url]
-    playlists = vk.create_playlists(group_id=fake_group_id, playlist_name=track_name,
-                                    cover_path=cover_path, count=len(retarget))
+    playlists = vk.create_playlists_in_group(group_id=fake_group_id, count=len(retarget))
 
     # Создает дарк-посты {post_url: playlist_url}
     dark_posts = _create_dark_posts(artist_group_id, artist_name, citation, playlists, track_name, vk)
@@ -304,15 +330,3 @@ def start_campaign_from_db(update, campaign, size=500000):
                                                   campaign_budget, campaign_id, citation, client_id, client_name,
                                                   cover_path, fake_group_id, music_interest_filter, track_name, user)
     add_campaign_details_to_db(update, detailed_campaign)
-
-
-def _len_segments_with_rate_over_3(stat):
-    segments_over_3 = 0
-    for _, v in stat.items():
-        listens = v['listens']
-        reach = v['reach']
-        if reach != 0:
-            rate = round((listens / reach * 100), 2)
-            if rate >= 3:
-                segments_over_3 += 1
-    return segments_over_3
