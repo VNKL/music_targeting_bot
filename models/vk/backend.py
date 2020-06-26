@@ -834,7 +834,8 @@ class ExecuteAudioBackend:
                 pl_url = f'https://vk.com/music/album/{playlist["owner_id"]}_{playlist["id"]}'
                 listens = playlist['plays']
                 followers = playlist['followers']
-                playlist_stats[pl_url] = {'listens': listens, 'followers': followers}
+                title = playlist['title']
+                playlist_stats[pl_url] = {'listens': listens, 'followers': followers, 'title': title}
         except KeyError:
             print(resp)
 
@@ -1471,11 +1472,18 @@ class Bagosi:
 
     def _past_public_url_in_bagosi(self, url):
         # Вставляем ссылку
-        linkform = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id')))
-        button = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="submit"]')))
-        linkform.send_keys(url)
-        button.click()
-        time.sleep(3)
+        try:
+            linkform = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id')))
+            button = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="submit"]')))
+            linkform.send_keys(url)
+            button.click()
+            time.sleep(3)
+        except exceptions.TimeoutException:
+            relogin_button = WebDriverWait(self.browser, 10).until(
+                EC.presence_of_element_located((By.XPATH, '/html/body/div[3]/div/div/div[2]/div/a[3]')))
+            relogin_button.click()
+            time.sleep(3)
+            self._past_public_url_in_bagosi(url)
 
     def _vk_auth(self):
         try:
@@ -1515,4 +1523,7 @@ class Bagosi:
         return count
 
     def __del__(self):
-        self.browser.close()
+        try:
+            self.browser.close()
+        except AttributeError:
+            pass

@@ -280,8 +280,11 @@ def listens_rate(ads_stat):
     for ad_id, stat in ads_stat.items():
         reach = stat['reach']
         listens = stat['listens']
-        rate = round((listens / reach * 100), 2)
-        listens_rate[ad_id] = rate
+        try:
+            rate = round((listens / reach * 100), 2)
+            listens_rate[ad_id] = rate
+        except ZeroDivisionError:
+            pass
     return listens_rate
 
 
@@ -295,8 +298,11 @@ def listens_cost(ads_stat):
     for ad_id, stat in ads_stat.items():
         spent = stat['spent']
         listens = stat['listens']
-        cost = round((spent / listens), 2)
-        listens_cost[ad_id] = cost
+        try:
+            cost = round((spent / listens), 2)
+            listens_cost[ad_id] = cost
+        except ZeroDivisionError:
+            pass
     return listens_cost
 
 
