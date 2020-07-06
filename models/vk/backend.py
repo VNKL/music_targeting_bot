@@ -711,6 +711,8 @@ class ExecuteAudioBackend:
         return code
 
     def _code_for_create_playlists(self, batch, group_id, playlist_name):
+        playlist_name = playlist_name.replace('#', '')
+
         code = 'return ['
         for _ in range(batch):
             tmp = 'API.audio.createPlaylist({owner_id: -' + str(group_id) + ', title: "' + str(playlist_name) + '"}), '
