@@ -8,9 +8,11 @@ import json
 import requests
 import pickle
 
+from random import uniform
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.proxy import Proxy, ProxyType
 from selenium.common import exceptions
 
 
@@ -322,7 +324,7 @@ class VkAudioBackend:
                 (By.XPATH, f'//*[@id="box_layer"]/div[3]/div/div[2]/div/div[3]/div[{xpath_key}]/div[1]')))
             add_btn.click()
         except exceptions.TimeoutException:
-            self._click_on_first_result(xpath_key=xpath_key-1)
+            self._click_on_first_result(xpath_key=xpath_key - 1)
 
     def _click_on_flag_right_audio(self):
         audio_flag = WebDriverWait(self.browser, 5).until(EC.presence_of_element_located(
@@ -380,7 +382,7 @@ class VkAudioBackend:
 
         except exceptions.TimeoutException:
             self.browser.refresh()
-            self._create_playlist_without_cover(group_id, playlist_name, button_key=button_key+1)
+            self._create_playlist_without_cover(group_id, playlist_name, button_key=button_key + 1)
 
         except exceptions.ElementClickInterceptedException:
             self.browser.refresh()
@@ -405,7 +407,7 @@ class VkAudioBackend:
 
         except exceptions.TimeoutException:
             self.browser.refresh()
-            self._create_playlist_with_cover(group_id, playlist_name, cover_path, button_key=button_key+1)
+            self._create_playlist_with_cover(group_id, playlist_name, cover_path, button_key=button_key + 1)
 
         except exceptions.ElementClickInterceptedException:
             self.browser.refresh()
@@ -524,7 +526,7 @@ class VkAudioBackend:
         except (exceptions.ElementClickInterceptedException, exceptions.TimeoutException,
                 exceptions.ElementNotInteractableException):
             print('some error with add audio from search')
-            return self.add_audio_in_group(group_id, track_name, button_key=button_key-1)
+            return self.add_audio_in_group(group_id, track_name, button_key=button_key - 1)
 
     def browser_auth(self):
         """
@@ -703,8 +705,8 @@ class ExecuteAudioBackend:
         code = 'return ['
         for plylist_id in playlist_ids:
             tmp = 'API.audio.addToPlaylist({owner_id: -' + str(group_id) + \
-                                        ', playlist_id: ' + str(plylist_id) + \
-                                        ', audio_ids: "-' + str(group_id) + '_' + str(audio_id) + '"}), '
+                  ', playlist_id: ' + str(plylist_id) + \
+                  ', audio_ids: "-' + str(group_id) + '_' + str(audio_id) + '"}), '
             code += tmp
         code = code[:-2]
         code += '];'
@@ -928,46 +930,46 @@ class VkAdsBackend:
 
     def _data_for_ads_without_music(self, base_id, base_name, campaign_id, post, sex):
         data = [{
-            'campaign_id': campaign_id,             # Айди кампании
-            'ad_format': 9,                         # Формат объявления, 9 - посты
-            'autobidding': 0,                       # Автоуправление ценой
-            'cost_type': 1,                         # Способ оплаты, 1 - СРМ
-            'cpm': 30.,                             # CPM
-            'impressions_limit': 1,                 # Показы на одного человека
-            'ad_platform': 'mobile',                # Площадки показа
-            'all_limit': 100,                       # Лимит по бюджету
-            'category1_id': 51,                     # Тематика объявления, 51 - музыка
-            'age_restriction': 1,                   # Возрастной дисклеймер, 1 - 0+
-            'status': 1,                            # Статус объявления, 1 - запущено
-            'name': base_name,                      # Название объявления
-            'link_url': post,                       # Ссылка на дарк-пост
-            'country': 0,                           # Страна, 0 - не задана
-            'user_devices': 1001,                   # Устройства, 1001 - смартфоны
-            'retargeting_groups': base_id,          # База ретаргета
+            'campaign_id': campaign_id,  # Айди кампании
+            'ad_format': 9,  # Формат объявления, 9 - посты
+            'autobidding': 0,  # Автоуправление ценой
+            'cost_type': 1,  # Способ оплаты, 1 - СРМ
+            'cpm': 30.,  # CPM
+            'impressions_limit': 1,  # Показы на одного человека
+            'ad_platform': 'mobile',  # Площадки показа
+            'all_limit': 100,  # Лимит по бюджету
+            'category1_id': 51,  # Тематика объявления, 51 - музыка
+            'age_restriction': 1,  # Возрастной дисклеймер, 1 - 0+
+            'status': 1,  # Статус объявления, 1 - запущено
+            'name': base_name,  # Название объявления
+            'link_url': post,  # Ссылка на дарк-пост
+            'country': 0,  # Страна, 0 - не задана
+            'user_devices': 1001,  # Устройства, 1001 - смартфоны
+            'retargeting_groups': base_id,  # База ретаргета
             'sex': sex  # Пол, 0 - любой, 1 - женский, 2 - мужской
         }]
         return data
 
     def _data_for_ads_with_music(self, base_id, base_name, campaign_id, post, sex):
         data = [{
-            'campaign_id': campaign_id,             # Айди кампании
-            'ad_format': 9,                         # Формат объявления, 9 - посты
-            'autobidding': 0,                       # Автоуправление ценой
-            'cost_type': 1,                         # Способ оплаты, 1 - СРМ
-            'cpm': 30.,                             # CPM
-            'impressions_limit': 1,                 # Показы на одного человека
-            'ad_platform': 'mobile',                # Площадки показа
-            'all_limit': 100,                       # Лимит по бюджету
-            'category1_id': 51,                     # Тематика объявления, 51 - музыка
-            'age_restriction': 1,                   # Возрастной дисклеймер, 1 - 0+
-            'status': 1,                            # Статус объявления, 1 - запущено
-            'name': base_name,                      # Название объявления
-            'link_url': post,                       # Ссылка на дарк-пост
-            'country': 0,                           # Страна, 0 - не задана
-            'interest_categories': 10010,           # Категории интересов, 10010 - музыка
-            'user_devices': 1001,                   # Устройства, 1001 - смартфоны
-            'retargeting_groups': base_id,          # База ретаргета
-            'sex': sex                              # Пол, 0 - любой, 1 - женский, 2 - мужской
+            'campaign_id': campaign_id,  # Айди кампании
+            'ad_format': 9,  # Формат объявления, 9 - посты
+            'autobidding': 0,  # Автоуправление ценой
+            'cost_type': 1,  # Способ оплаты, 1 - СРМ
+            'cpm': 30.,  # CPM
+            'impressions_limit': 1,  # Показы на одного человека
+            'ad_platform': 'mobile',  # Площадки показа
+            'all_limit': 100,  # Лимит по бюджету
+            'category1_id': 51,  # Тематика объявления, 51 - музыка
+            'age_restriction': 1,  # Возрастной дисклеймер, 1 - 0+
+            'status': 1,  # Статус объявления, 1 - запущено
+            'name': base_name,  # Название объявления
+            'link_url': post,  # Ссылка на дарк-пост
+            'country': 0,  # Страна, 0 - не задана
+            'interest_categories': 10010,  # Категории интересов, 10010 - музыка
+            'user_devices': 1001,  # Устройства, 1001 - смартфоны
+            'retargeting_groups': base_id,  # База ретаргета
+            'sex': sex  # Пол, 0 - любой, 1 - женский, 2 - мужской
         }]
         return data
 
@@ -1455,34 +1457,44 @@ class Bagosi:
 
     def _config_selenium(self, headless):
 
-        chromeOptions = webdriver.ChromeOptions()
+        options = webdriver.ChromeOptions()
         prefs = {"profile.managed_default_content_settings.images": 2}
-        chromeOptions.add_experimental_option("prefs", prefs)
-        chromeOptions.add_experimental_option("excludeSwitches", ["enable-logging"])
+        options.add_experimental_option("prefs", prefs)
+        options.add_experimental_option("excludeSwitches", ["enable-logging"])
+        # options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        # options.add_experimental_option('useAutomationExtension', False)
+
         if headless is True:
-            chromeOptions.add_argument('headless')
-        chromeOptions.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/'
-                                   '537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36 Edge/18.17763')
-        browser = webdriver.Chrome('C:\chromedriver\chromedriver.exe', options=chromeOptions)
+            options.add_argument('headless')
+
+        options.add_argument('--user-agent="Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:71.0) '
+                             'Gecko/20100101 Firefox/71.0"')
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        browser = webdriver.Chrome('C:\chromedriver\chromedriver.exe', options=options)
+
         return browser
 
     def _bagosi_auth(self):
         # Логинимся в багосах и переходим на нужную страницу
-        self.browser.get('https://bago.si/login?n=vk')
-        time.sleep(1)
-        self.browser.get('https://bago.si/audio_savers')
+        try:
+            self.browser.get('https://bago.si/login?n=vk')
+            time.sleep(uniform(5, 10))
+            self.browser.get('https://bago.si/audio_savers')
+        except exceptions.UnexpectedAlertPresentException:
+            self._bagosi_auth()
 
     def _past_public_url_in_bagosi(self, url):
         # Вставляем ссылку
         try:
-            linkform = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.ID, 'id')))
-            button = WebDriverWait(self.browser, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="submit"]')))
+            linkform = WebDriverWait(self.browser, 3).until(EC.presence_of_element_located((By.ID, 'id')))
+            button = WebDriverWait(self.browser, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="submit"]')))
             linkform.send_keys(url)
             button.click()
             time.sleep(3)
         except exceptions.TimeoutException:
-            relogin_button = WebDriverWait(self.browser, 10).until(
-                EC.presence_of_element_located((By.XPATH, '/html/body/div[3]/div/div/div[2]/div/a[3]')))
+            relogin_button = WebDriverWait(self.browser, 3).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="id"]')))
             relogin_button.click()
             time.sleep(3)
             self._past_public_url_in_bagosi(url)
@@ -1506,21 +1518,27 @@ class Bagosi:
 
     def get_savers_count(self, url):
 
-        self._vk_auth()
-        self._bagosi_auth()
-        self._past_public_url_in_bagosi(url)
-
-        # Получаем список аудио из url
-        page = self.browser.page_source
-        soup = BeautifulSoup(page, 'lxml')
-        audios = soup.find_all(class_='mt-2')
-
-        # Получаем количество сейверов последнего аудио
         try:
-            count = audios[0].find(class_='sub_text float-right').get_text()
-            count = int(count.replace(' ', ''))
-        except IndexError:
+            self._vk_auth()
+            self._bagosi_auth()
+            self._past_public_url_in_bagosi(url)
+
+            # Получаем список аудио из url
+            page = self.browser.page_source
+            soup = BeautifulSoup(page, 'lxml')
+            audios = soup.find_all(class_='mt-2')
+
+            # Получаем количество сейверов последнего аудио
+            try:
+                count = audios[0].find(class_='sub_text float-right').get_text()
+                count = int(count.replace(' ', ''))
+            except IndexError:
+                count = None
+        except exceptions.TimeoutException:
             count = None
+
+        if not count:
+            print('WARNING ==== some problem with Bago.si ==== WARNING')
 
         return count
 
